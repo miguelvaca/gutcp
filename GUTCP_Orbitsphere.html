@@ -70,6 +70,7 @@
 			
 				if(animateBECVF) {
                     float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRing) * wavesPerRing;
+					//float bright = (cos((2.0*3.1416*waveSpeed*uTime*wavesPerRing)+(2.0*3.1416*uv.y*wavesPerRing)) + 1.0) * 0.5;
                     vColor = vec4( (1.0-bright)*redBECVF, (1.0-bright)*greenBECVF, (1.0-bright)*blueBECVF, alphaBECVF );
 				} else {
 					vColor = vec4( redBECVF, greenBECVF, blueBECVF, alphaBECVF );
@@ -431,27 +432,27 @@
 				
 					theta = 2.0 * Math.PI * i / WIDTH;
 					// Setup the 3x3 rotation matrix from GUTCP Eq(1.84)
-					var becvfRot = new Float32Array(9);
-					becvfRot[0+0] = ( 0.25 * (1.0 + 3.0*Math.cos(theta)));
-					becvfRot[0+1] = ( 0.25 * (-1.0 + Math.cos(theta) + 2.0 * 1.414 * Math.sin(theta)));
-					becvfRot[0+2] = ( 0.25 * (-1.414 + 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
-					becvfRot[3+0] = ( 0.25 * (-1.0 + Math.cos(theta) - 2.0 * 1.414 * Math.sin(theta)));
-					becvfRot[3+1] = ( 0.25 * (1.0 + 3.0*Math.cos(theta))); 
-					becvfRot[3+2] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
-					becvfRot[6+0] = ( 0.5 * (((-1 + Math.cos(theta))/1.414) + Math.sin(theta)));
-					becvfRot[6+1] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) + 2.0 * Math.sin(theta)));
-					becvfRot[6+2] = (Math.cos(theta*0.5) * Math.cos(theta*0.5));
+					var ocvfRot = new Float32Array(9);
+					ocvfRot[0+0] = ( 0.25 * (1.0 + 3.0*Math.cos(theta)));
+					ocvfRot[0+1] = ( 0.25 * (-1.0 + Math.cos(theta) + 2.0 * 1.414 * Math.sin(theta)));
+					ocvfRot[0+2] = ( 0.25 * (-1.414 + 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
+					ocvfRot[3+0] = ( 0.25 * (-1.0 + Math.cos(theta) - 2.0 * 1.414 * Math.sin(theta)));
+					ocvfRot[3+1] = ( 0.25 * (1.0 + 3.0*Math.cos(theta))); 
+					ocvfRot[3+2] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
+					ocvfRot[6+0] = ( 0.5 * (((-1 + Math.cos(theta))/1.414) + Math.sin(theta)));
+					ocvfRot[6+1] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) + 2.0 * Math.sin(theta)));
+					ocvfRot[6+2] = (Math.cos(theta*0.5) * Math.cos(theta*0.5));
 					
 					for ( var j = 0; j < WIDTH; j++ ) {
 					
-						psi = 2.0 * Math.PI * j / WIDTH;
-						var becvf = new Float32Array([(0.707*effectController.radius * Math.cos(psi)), 
+						psi = 2.0 * Math.PI * j / WIDTH + 0.5 * Math.PI;  // Half-PI phase addition is to correct a kink artefact
+						var ocvf = new Float32Array([(0.707*effectController.radius * Math.cos(psi)), 
 													  (0.707*effectController.radius * Math.cos(psi)), 
 													  (-effectController.radius * Math.sin(psi))]);
 
-						positions[ p++ ] = becvf[0]*becvfRot[0+0] + becvf[1]*becvfRot[0+1] + becvf[2]*becvfRot[0+2];
-						positions[ p++ ] = becvf[0]*becvfRot[3+0] + becvf[1]*becvfRot[3+1] + becvf[2]*becvfRot[3+2]; 
-						positions[ p++ ] = becvf[0]*becvfRot[6+0] + becvf[1]*becvfRot[6+1] + becvf[2]*becvfRot[6+2];
+						positions[ p++ ] = ocvf[0]*ocvfRot[0+0] + ocvf[1]*ocvfRot[0+1] + ocvf[2]*ocvfRot[0+2];
+						positions[ p++ ] = ocvf[0]*ocvfRot[3+0] + ocvf[1]*ocvfRot[3+1] + ocvf[2]*ocvfRot[3+2]; 
+						positions[ p++ ] = ocvf[0]*ocvfRot[6+0] + ocvf[1]*ocvfRot[6+1] + ocvf[2]*ocvfRot[6+2];
 					}
 				}
 
