@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>GUTCP Orbitsphere WebGL Demo</title>
+		<title>GUTCP Orbitsphere CVFS Demo</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
@@ -36,9 +36,9 @@
 	<body>
 
         <div id="info">
-            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 1.5 - Generation of the Orbitsphere-CVFS</a>
+            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 1.5 - Generation of the Orbitsphere-CVFs</a>
             <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Simulation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
-            <br> Select points-per-great circle: <span id="options"></span><br/>
+            <br> Select points per great circle: <span id="options"></span><br/>
         </div>
 
 		<script src="https://threejs.org/build/three.js"></script>
@@ -156,14 +156,14 @@
             #include <common>
 
             uniform float cameraConstant;
-            uniform float brightGrid;
+            uniform float gridBrightness;
             uniform float alphaGrid;
 
             varying vec4 vColor;
 
             void main() {
 
-                vColor = vec4( brightGrid, brightGrid, brightGrid, alphaGrid );
+                vColor = vec4( gridBrightness, gridBrightness, gridBrightness, alphaGrid );
 
                 vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
 
@@ -237,6 +237,7 @@
             var yPoints_1_103;
             var yPoints_1_109;
 
+			var gridGeometry;
             var gridUniforms;
 
             var effectController;
@@ -268,7 +269,7 @@
                     waveSpeed: 0.50,
 					wavesPerRing: 2.0,
 
-                    brightGrid: 0.4,
+                    gridBrightness: 0.4,
                     alphaGrid:  1.0,
 
                     becvfGeometry: 'lines',
@@ -782,7 +783,7 @@
 
                 gridUniforms = {
                     cameraConstant: { value: getCameraConstant( camera ) },
-                    brightGrid: { value: 0.4 },
+                    gridBrightness: { value: 0.4 },
                     alphaGrid: { value: 1.0 }
                 };
                 
@@ -796,11 +797,11 @@
                                                         
                                                         material.extensions.drawBuffers = true;
                                                         
-                                                        var VERTICES = new THREE.LineSegments( geometry, material );
-                                                        VERTICES.matrixAutoUpdate = false;
-                                                        VERTICES.updateMatrix();
+                                                        gridGeometry = new THREE.LineSegments( geometry, material );
+                                                        gridGeometry.matrixAutoUpdate = false;
+                                                        gridGeometry.updateMatrix();
                                                         
-                                                        scene.add( VERTICES );
+                                                        scene.add( gridGeometry );
             }
 
 			function onWindowResize() {
@@ -813,7 +814,12 @@
 
 			function dynamicValuesChanger() {
 
-                gridUniforms.brightGrid.value = effectController.brightGrid;
+                gridUniforms.gridBrightness.value = effectController.gridBrightness;
+                if(effectController.gridBrightness >= 0.05) {
+                	gridGeometry.visible = true;
+				} else {
+                	gridGeometry.visible = false;
+				}
                 gridUniforms.alphaGrid.value = effectController.alphaGrid;
 
                 if(effectController.becvfGeometry == 'hide') {
@@ -876,7 +882,7 @@
 				var folder1 = gui.addFolder( 'Common parameters' );
                 folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
-				folder1.add( effectController, "brightGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+				folder1.add( effectController, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 				//folder1.add( effectController, "alphaGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 
 				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
