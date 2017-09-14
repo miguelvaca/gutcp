@@ -36,7 +36,7 @@
 	<body>
 
         <div id="info">
-            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 1.5 - Generation of the Orbitsphere-CVFs</a>
+            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 1.5 - Generation of the Orbitsphere CVFs</a>
             <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Simulation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
             <br> Select points per great circle: <span id="options"></span><br/>
         </div>
@@ -217,7 +217,11 @@
             var options = '';
             for ( var i = 1; i <= 6; i++ ) {
                 var j = i * 60;
-                options += '<a href="#" onclick="return change(' + j + ')">' + j + '</a> ';
+                if(WIDTH != j) {
+                	options += '<a href="#" onclick="return change(' + j + ')">' + j + '</a> ';
+                } else {
+                	options += j + ' ';
+                }
             }
 
             document.getElementById( 'options' ).innerHTML = options;
