@@ -37,16 +37,16 @@
 
         <div id="info">
             <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 1.5 - Generation of the Orbitsphere-CVFS</a>
-            <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Simulation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> <br> Select <span id="options"></span> ring density<br/>
-
+            <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Simulation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
+            <br> Select points-per-great circle: <span id="options"></span><br/>
         </div>
 
-		<script src="./three.js/build/three.js"></script>
-		<script src="./three.js/examples/js/Detector.js"></script>
-		<script src="./three.js/examples/js/libs/stats.min.js"></script>
-		<script src="./three.js/examples/js/libs/dat.gui.min.js"></script>
-		<script src="./three.js/examples/js/controls/OrbitControls.js"></script>
-		<script src="./three.js/examples/js/GPUComputationRenderer.js"></script>
+		<script src="https://threejs.org/build/three.js"></script>
+		<script src="https://threejs.org/examples/js/Detector.js"></script>
+		<script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
+		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
+		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+		<script src="https://threejs.org/examples/js/GPUComputationRenderer.js"></script>
 
         <!-- VERTICES vertex shader - Use this to update the position due to camera projection -->
 		<script id="becvfVertexShader" type="x-shader/x-vertex">
@@ -504,8 +504,8 @@
 				geometry = new THREE.BufferGeometry();
 
                 // Storage for all the locations for the BECVF:
-                var M = 24;
-                var N = 24;
+                var M = WIDTH / 5;
+                var N = WIDTH / 5;
                 var positions = new Float32Array( (M * N * WIDTH) * 3 );
                 var uvs = new Float32Array( (M * N * WIDTH) * 2 );
                 var p = 0;
@@ -559,8 +559,8 @@
                 p=0;
                 // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
                 // TODO - do we really need a uv with this???
-                for ( var j = 0; j < M; j++ ) {
-                    for ( var i = 0; i < N; i++ ) {
+                for ( var j = 1; j <= M; j++ ) {
+                    for ( var i = 1; i <= N; i++ ) {
                         for(var k = 0; k < WIDTH; ++k) {
                             uvs[ p++ ] = k / ( WIDTH );
                             uvs[ p++ ] = k / ( WIDTH );
@@ -604,8 +604,8 @@
 				geometry = new THREE.BufferGeometry();
 
                 // Storage for all the locations for the BECVF:
-                var M = 24;
-                var N = 24;
+                var M = WIDTH / 5;
+                var N = WIDTH / 5;
                 var positions = new Float32Array( (M * N * WIDTH) * 3 );
                 var uvs = new Float32Array( (M * N * WIDTH) * 2 );
                 var p = 0;
@@ -659,8 +659,8 @@
                 p=0;
                 // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
                 // TODO - do we really need a uv with this???
-                for ( var j = 0; j < M; j++ ) {
-                    for ( var i = 0; i < N; i++ ) {
+                for ( var j = 1; j <= M; j++ ) {
+                    for ( var i = 1; i <= N; i++ ) {
                         for(var k = 0; k < WIDTH; ++k) {
                             uvs[ p++ ] = k / ( WIDTH );
                             uvs[ p++ ] = k / ( WIDTH );
