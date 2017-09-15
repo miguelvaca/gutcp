@@ -240,6 +240,8 @@
 
             var yPoints_1_103;
             var yPoints_1_109;
+            
+            var blackSphere;
 
 			var gridGeometry;
             var gridUniforms;
@@ -275,6 +277,7 @@
 
                     gridBrightness: 0.4,
                     alphaGrid:  1.0,
+                    enableBlkSphere: false,
 
                     becvfGeometry: 'lines',
 					showBECVF: true,
@@ -319,6 +322,7 @@
 				initOCVF();
                 initY_1_103();
                 initY_1_109();
+                init_CurrentDensity();
 
                 initGUI();
 
@@ -705,6 +709,16 @@
                                                         yPoints_1_109.visible = false;
             }
 
+			function init_CurrentDensity() {
+				// Create and insert a black sphere that can be used to obscure the back-half of the sphere.
+				// Make its radius 99, which is less than the 100 radius of the rest of anim.
+				geometry = new THREE.SphereBufferGeometry( 99, 32, 32 );
+				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
+				blackSphere = new THREE.Mesh( geometry, material );
+				scene.add( blackSphere );            
+			}
+			
+
             function initGrid() {
 
                 var GRIDPOINTS = 3;
@@ -826,6 +840,7 @@
                 	gridGeometry.visible = false;
 				}
                 gridUniforms.alphaGrid.value = effectController.alphaGrid;
+                blackSphere.visible = effectController.enableBlkSphere;
 
                 if(effectController.becvfGeometry == 'hide') {
                     becvfPoints.visible = false;
@@ -888,6 +903,7 @@
                 folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+                folder1.add( effectController, "enableBlkSphere" ).onChange( dynamicValuesChanger );
 				//folder1.add( effectController, "alphaGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 
 				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
