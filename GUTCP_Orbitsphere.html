@@ -295,19 +295,19 @@
 					blueOCVF:  1.0,
                     alphaOCVF: 1.0,
 
-                    showY: true,
+                    yGeometry: 'hide',
                     animateY: true,
                     redY:   0.0,
                     greenY: 1.0,
                     blueY:  0.0,
                     alphaY: 1.0,
 
-                    showYortho:  true,
-                    animateYortho: true,
-                    redYortho:   1.0,
-                    greenYortho: 0.0,
-                    blueYortho:  1.0,
-                    alphaYortho: 1.0
+                    yyGeometry:  'hide',
+                    animateYy: true,
+                    redYy:   1.0,
+                    greenYy: 0.0,
+                    blueYy:  1.0,
+                    alphaYy: 1.0
 				};
 
 				//initComputeRenderer();
@@ -600,12 +600,19 @@
                                                         } );
                                                         material.extensions.drawBuffers = true;
                                                         
-                                                        yPoints_1_103 = new THREE.LineLoop( geometry, material );
-                                                        yPoints_1_103.matrixAutoUpdate = false;
-                                                        yPoints_1_103.updateMatrix();
-                                                        scene.add( yPoints_1_103 );
+				yPoints_1_103 = new THREE.Points( geometry, material );
+				yPoints_1_103.matrixAutoUpdate = false;
+				yPoints_1_103.updateMatrix();
+				scene.add( yPoints_1_103 );
                 // Keep Y hidden initially:
                 yPoints_1_103.visible = false;
+                
+				yLines_1_103 = new THREE.LineLoop( geometry, material );
+				yLines_1_103.matrixAutoUpdate = false;
+				yLines_1_103.updateMatrix();
+				scene.add( yLines_1_103 );
+                // Keep Y hidden initially:
+                yLines_1_103.visible = false;
             }
 
             // Geometry based on GUTCP Equation 1.109:
@@ -701,12 +708,19 @@
                                                         } );
                                                         material.extensions.drawBuffers = true;
 
-                                                        yPoints_1_109 = new THREE.LineLoop( geometry, material );
-                                                        yPoints_1_109.matrixAutoUpdate = false;
-                                                        yPoints_1_109.updateMatrix();
-                                                        scene.add( yPoints_1_109 );
-                                                        // Keep Y hidden initially:
-                                                        yPoints_1_109.visible = false;
+				yPoints_1_109 = new THREE.Points( geometry, material );
+				yPoints_1_109.matrixAutoUpdate = false;
+				yPoints_1_109.updateMatrix();
+				scene.add( yPoints_1_109 );
+				// Keep Y hidden initially:
+				yPoints_1_109.visible = false;
+
+				yLines_1_109 = new THREE.LineLoop( geometry, material );
+				yLines_1_109.matrixAutoUpdate = false;
+				yLines_1_109.updateMatrix();
+				scene.add( yLines_1_109 );
+                // Keep Y hidden initially:
+                yLines_1_109.visible = false;
             }
 
 			function init_CurrentDensity() {
@@ -885,14 +899,34 @@
                 yUniforms_1_103.greenY.value = effectController.greenY;
                 yUniforms_1_103.blueY.value  = effectController.blueY;
                 yUniforms_1_103.alphaY.value  = effectController.alphaY;
+                if(effectController.yGeometry == 'hide') {
+                    yPoints_1_103.visible = false;
+                    yLines_1_103.visible = false;
+                } else if(effectController.yGeometry == 'points') {
+                        yPoints_1_103.visible = true;
+                        yLines_1_103.visible = false;
+                } else {
+                    yPoints_1_103.visible = false;
+                    yLines_1_103.visible = true;
+                }
 
                 yUniforms_1_109.waveSpeed.value = effectController.waveSpeed;
                 yUniforms_1_109.wavesPerRing.value = effectController.wavesPerRing;
-                yUniforms_1_109.animateY.value = effectController.animateYortho;
-                yUniforms_1_109.redY.value   = effectController.redYortho;
-                yUniforms_1_109.greenY.value = effectController.greenYortho;
-                yUniforms_1_109.blueY.value  = effectController.blueYortho;
-                yUniforms_1_109.alphaY.value  = effectController.alphaYortho;
+                yUniforms_1_109.animateY.value = effectController.animateYy;
+                yUniforms_1_109.redY.value   = effectController.redYy;
+                yUniforms_1_109.greenY.value = effectController.greenYy;
+                yUniforms_1_109.blueY.value  = effectController.blueYy;
+                yUniforms_1_109.alphaY.value  = effectController.alphaYy;
+                if(effectController.yyGeometry == 'hide') {
+                    yPoints_1_109.visible = false;
+                    yLines_1_109.visible = false;
+                } else if(effectController.yyGeometry == 'points') {
+                        yPoints_1_109.visible = true;
+                        yLines_1_109.visible = false;
+                } else {
+                    yPoints_1_109.visible = false;
+                    yLines_1_109.visible = true;
+                }
 			}
 
 			function initGUI() {
@@ -923,7 +957,8 @@
                 //folder3.add( effectController, "alphaOCVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 
                 var folder4 = gui.addFolder( 'Y - Current Pattern Func (Eq 1.103)' );
-                folder4.add( yPoints_1_103, "visible" ).onChange( dynamicValuesChanger );
+                folder4.add( effectController, "yGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
+                //folder4.add( yPoints_1_103, "visible" ).onChange( dynamicValuesChanger );
                 folder4.add( effectController, "animateY" ).onChange( dynamicValuesChanger );
                 folder4.add( effectController, "redY", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
                 folder4.add( effectController, "greenY", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
@@ -931,12 +966,13 @@
                 //folder4.add( effectController, "alphaY", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 
                 var folder5 = gui.addFolder( 'Y - Current Pattern Func (Eq 1.109)' );
-                folder5.add( yPoints_1_109, "visible" ).onChange( dynamicValuesChanger );
-                folder5.add( effectController, "animateYortho" ).onChange( dynamicValuesChanger );
-                folder5.add( effectController, "redYortho", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                folder5.add( effectController, "greenYortho", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                folder5.add( effectController, "blueYortho", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                //folder5.add( effectController, "alphaYortho", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+                folder5.add( effectController, "yyGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
+                //folder5.add( yPoints_1_109, "visible" ).onChange( dynamicValuesChanger );
+                folder5.add( effectController, "animateYy" ).onChange( dynamicValuesChanger );
+                folder5.add( effectController, "redYy", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+                folder5.add( effectController, "greenYy", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+                folder5.add( effectController, "blueYy", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+                //folder5.add( effectController, "alphaYy", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 
 				folder1.open();
 				folder2.open();
