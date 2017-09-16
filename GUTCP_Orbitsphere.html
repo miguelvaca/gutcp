@@ -48,7 +48,7 @@
 		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
 
         <!-- VERTICES vertex shader - Use this to update the position due to camera projection -->
-		<script id="becvfVertexShader" type="x-shader/x-vertex">
+		<script id="cvfVertexShader" type="x-shader/x-vertex">
 
 			// For PI declaration:
 			#include <common>
@@ -57,22 +57,19 @@
 			uniform float wavesPerRing;
             uniform float waveSpeed;
 			uniform float uTime;
-			uniform bool  animateBECVF;
-			uniform float redBECVF;
-			uniform float greenBECVF;
-			uniform float blueBECVF;
-            uniform float alphaBECVF;
+			uniform bool  animate;
+			uniform vec4  color;
 
 			varying vec4 vColor;
 
 			void main() {
 			
-				if(animateBECVF) {
+				if(animate) {
                     float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRing) * wavesPerRing;
 					//float bright = (cos((2.0*3.1416*waveSpeed*uTime*wavesPerRing)+(2.0*3.1416*uv.y*wavesPerRing)) + 1.0) * 0.5;
-                    vColor = vec4( (1.0-bright)*redBECVF, (1.0-bright)*greenBECVF, (1.0-bright)*blueBECVF, alphaBECVF );
+                    vColor = vec4( (1.0-bright)*color[0], (1.0-bright)*color[1], (1.0-bright)*color[2], color[3] );
 				} else {
-					vColor = vec4( redBECVF, greenBECVF, blueBECVF, alphaBECVF );
+                    vColor = color;
 				}
 
 				vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
@@ -82,72 +79,6 @@
 			}
 
 		</script>
-
-        <!-- VERTICES vertex shader - Use this to update the position due to camera projection -->
-		<script id="ocvfVertexShader" type="x-shader/x-vertex">
-
-			// For PI declaration:
-			#include <common>
-
-			uniform float cameraConstant;
-			uniform float wavesPerRing;
-            uniform float waveSpeed;
-			uniform float uTime;
-			uniform bool  animateOCVF;
-			uniform float redOCVF;
-			uniform float greenOCVF;
-			uniform float blueOCVF;
-            uniform float alphaOCVF;
-
-			varying vec4 vColor;
-
-			void main() {
-			
-				if(animateOCVF) {
-                    float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRing) * wavesPerRing;
-					vColor = vec4( (1.0-bright)*redOCVF, (1.0-bright)*greenOCVF, (1.0-bright)*blueOCVF, alphaOCVF );
-				} else {
-					vColor = vec4( redOCVF, greenOCVF, blueOCVF, alphaOCVF );
-				}
-
-				vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
-				
-				gl_PointSize = 3.0;
-				gl_Position = projectionMatrix * mvPosition;
-			}
-		</script>
-
-        <!-- Grid vertex shader - Use this to update the position due to camera projection -->
-        <script id="yVertexShader" type="x-shader/x-vertex">
-
-            // For PI declaration:
-            #include <common>
-
-            uniform float cameraConstant;
-            uniform float wavesPerRing;
-            uniform float waveSpeed;
-            uniform float uTime;
-            uniform bool  animateY;
-            uniform float redY;
-            uniform float greenY;
-            uniform float blueY;
-            uniform float alphaY;
-
-            varying vec4 vColor;
-
-            void main() {
-
-                if(animateY) {
-                    float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRing) * wavesPerRing;
-                    vColor = vec4( (1.0-bright)*redY, (1.0-bright)*greenY, (1.0-bright)*blueY, alphaY );
-                } else {
-                    vColor = vec4( redY, greenY, blueY, alphaY );
-                }
-                vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
-                gl_PointSize = 2.0;
-                gl_Position = projectionMatrix * mvPosition;
-            }
-        </script>
 
         <!-- Grid vertex shader - Use this to update the position due to camera projection -->
         <script id="gridVertexShader" type="x-shader/x-vertex">
@@ -282,32 +213,20 @@
                     becvfGeometry: 'lines',
 					showBECVF: true,
 					animateBECVF: true,
-					redBECVF:   1.0,
-					greenBECVF: 0.0,
-					blueBECVF:  0.0,
-                    alphaBECVF: 1.0,
+					colorBECVF: [255, 0, 0, 1.0],
 
                     ocvfGeometry: 'lines',
 					showOCVF: true,
 					animateOCVF: true,
-					redOCVF:   0.0,
-					greenOCVF: 0.0,
-					blueOCVF:  1.0,
-                    alphaOCVF: 1.0,
+					colorOCVF: [0, 0, 255, 1.0],
 
                     yGeometry: 'hide',
                     animateY: true,
-                    redY:   0.0,
-                    greenY: 1.0,
-                    blueY:  0.0,
-                    alphaY: 1.0,
+					colorY: [0, 255, 0, 1.0],
 
                     yyGeometry:  'hide',
                     animateYy: true,
-                    redYy:   1.0,
-                    greenYy: 0.0,
-                    blueYy:  1.0,
-                    alphaYy: 1.0
+					colorYy: [255, 0, 255, 1.0]
 				};
 
 				//initComputeRenderer();
@@ -391,18 +310,14 @@
 					uTime: {value: 0.0},
                     waveSpeed: { value: 0.25 },
 					wavesPerRing: { value: 2.0 },
-					showBECVF: { value: true },
-					animateBECVF: { value: true },
-					redBECVF: { value: 0.0 },
-					greenBECVF: { value: 1.0 },
-					blueBECVF: { value: 0.0 },
-                    alphaBECVF: { value: 1.0 }
+					animate: { value: true },
+					color: { value: new THREE.Vector4([0.0, 0.0, 1.0, 1.0]) }
 				};
 
 				// ShaderMaterial
 				var material = new THREE.ShaderMaterial( {
 					uniforms:       becvfUniforms,
-					vertexShader:   document.getElementById( 'becvfVertexShader' ).textContent,
+					vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
 					fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
 				} );
 				material.extensions.drawBuffers = true;
@@ -480,18 +395,14 @@
 					uTime: {value: 0.0},
                     waveSpeed: { value: 0.25 },
 					wavesPerRing: { value: 2.0 },
-					showOCVF: { value: true },
-					animateOCVF: { value: true },
-					redOCVF: { value: 0.0 },
-					greenOCVF: { value: 1.0 },
-					blueOCVF: { value: 0.0 },
-                    alphaOCVF: { value: 1.0 }
+					animate: { value: true },
+					color: {value: new THREE.Vector4([1.0, 0.0, 0.0, 1.0])}
 				};
 
 				// ShaderMaterial
 				var material = new THREE.ShaderMaterial( {
 					uniforms:       ocvfUniforms,
-					vertexShader:   document.getElementById( 'ocvfVertexShader' ).textContent,
+					vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
 					fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
 				} );
 				material.extensions.drawBuffers = true;
@@ -585,17 +496,14 @@
                     uTime: {value: 0.0},
                     waveSpeed: { value: 0.25 },
                     wavesPerRing: { value: 2.0 },
-                    animateY: { value: true },
-                    redY: { value: 0.0 },
-                    greenY: { value: 1.0 },
-                    blueY: { value: 0.0 },
-                    alphaY: { value: 1.0 }
+                    animate: { value: true },
+					color: {value: new THREE.Vector4([0.0, 1.0, 0.0, 1.0])}
                 };
                 
                 // ShaderMaterial
                 var material = new THREE.ShaderMaterial( {
                                                         uniforms:       yUniforms_1_103,
-                                                        vertexShader:   document.getElementById( 'yVertexShader' ).textContent,
+                                                        vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
                                                         fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
                                                         } );
                                                         material.extensions.drawBuffers = true;
@@ -693,17 +601,14 @@
                     uTime:      { value: 0.0 },
                     waveSpeed:  { value: 0.25 },
                     wavesPerRing: { value: 2.0 },
-                    animateY:   { value: true },
-                    redY:       { value: 0.0 },
-                    greenY:     { value: 1.0 },
-                    blueY:      { value: 0.0 },
-                    alphaY:     { value: 1.0 }
+                    animate:    { value: true },
+					color: 		{ value: new THREE.Vector4([0.0, 1.0, 0.0, 1.0]) }
                 };
 
                 // ShaderMaterial
                 var material = new THREE.ShaderMaterial( {
                                                         uniforms:       yUniforms_1_109,
-                                                        vertexShader:   document.getElementById( 'yVertexShader' ).textContent,
+                                                        vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
                                                         fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
                                                         } );
                                                         material.extensions.drawBuffers = true;
@@ -868,11 +773,11 @@
                 }
                 becvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				becvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
-				becvfUniforms.animateBECVF.value = effectController.animateBECVF;
-				becvfUniforms.redBECVF.value   = effectController.redBECVF;
-				becvfUniforms.greenBECVF.value = effectController.greenBECVF;
-				becvfUniforms.blueBECVF.value  = effectController.blueBECVF;
-                becvfUniforms.alphaBECVF.value  = effectController.alphaBECVF;
+				becvfUniforms.animate.value = effectController.animateBECVF;
+				becvfUniforms.color.value   = [effectController.colorBECVF[0]/255.0, 
+												effectController.colorBECVF[1]/255.0,
+												effectController.colorBECVF[2]/255.0, 
+												effectController.colorBECVF[3]];
 
                 if(effectController.ocvfGeometry == 'hide') {
                     ocvfPoints.visible = false;
@@ -886,19 +791,19 @@
                 }
                 ocvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				ocvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
-				ocvfUniforms.animateOCVF.value = effectController.animateOCVF;
-				ocvfUniforms.redOCVF.value   = effectController.redOCVF;
-				ocvfUniforms.greenOCVF.value = effectController.greenOCVF;
-				ocvfUniforms.blueOCVF.value  = effectController.blueOCVF;
-                ocvfUniforms.alphaOCVF.value  = effectController.alphaOCVF;
+				ocvfUniforms.animate.value = effectController.animateOCVF;
+				ocvfUniforms.color.value   = [effectController.colorOCVF[0]/255.0, 
+											effectController.colorOCVF[1]/255.0,
+											effectController.colorOCVF[2]/255.0, 
+											effectController.colorOCVF[3]];
 
                 yUniforms_1_103.waveSpeed.value = effectController.waveSpeed;
                 yUniforms_1_103.wavesPerRing.value = effectController.wavesPerRing;
-                yUniforms_1_103.animateY.value = effectController.animateY;
-                yUniforms_1_103.redY.value   = effectController.redY;
-                yUniforms_1_103.greenY.value = effectController.greenY;
-                yUniforms_1_103.blueY.value  = effectController.blueY;
-                yUniforms_1_103.alphaY.value  = effectController.alphaY;
+                yUniforms_1_103.animate.value = effectController.animateY;
+				yUniforms_1_103.color.value   = [effectController.colorY[0]/255.0, 
+												effectController.colorY[1]/255.0,
+												effectController.colorY[2]/255.0, 
+												effectController.colorY[3]];
                 if(effectController.yGeometry == 'hide') {
                     yPoints_1_103.visible = false;
                     yLines_1_103.visible = false;
@@ -912,11 +817,11 @@
 
                 yUniforms_1_109.waveSpeed.value = effectController.waveSpeed;
                 yUniforms_1_109.wavesPerRing.value = effectController.wavesPerRing;
-                yUniforms_1_109.animateY.value = effectController.animateYy;
-                yUniforms_1_109.redY.value   = effectController.redYy;
-                yUniforms_1_109.greenY.value = effectController.greenYy;
-                yUniforms_1_109.blueY.value  = effectController.blueYy;
-                yUniforms_1_109.alphaY.value  = effectController.alphaYy;
+                yUniforms_1_109.animate.value = effectController.animateYy;
+				yUniforms_1_109.color.value   = [effectController.colorYy[0]/255.0, 
+												effectController.colorYy[1]/255.0,
+												effectController.colorYy[2]/255.0, 
+												effectController.colorYy[3]];
                 if(effectController.yyGeometry == 'hide') {
                     yPoints_1_109.visible = false;
                     yLines_1_109.visible = false;
@@ -930,49 +835,40 @@
 			}
 
 			function initGUI() {
-
+				// Create the parameter control panel (on the right)
 				var gui = new dat.GUI();
 
+				// Add a folder to hold all the common parameters:
 				var folder1 = gui.addFolder( 'Common parameters' );
                 folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+				// folder1.add( effectController, "alphaGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
                 folder1.add( effectController, "enableBlkSphere" ).onChange( dynamicValuesChanger );
-				//folder1.add( effectController, "alphaGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 
+				// Add a folder for the BECVF parameters:
 				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
                 folder2.add( effectController, "becvfGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
 				folder2.add( effectController, "animateBECVF" ).onChange( dynamicValuesChanger );
-				folder2.add( effectController, "redBECVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-				folder2.add( effectController, "greenBECVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-				folder2.add( effectController, "blueBECVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                //folder2.add( effectController, "alphaBECVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+				folder2.addColor( effectController, "colorBECVF").onChange( dynamicValuesChanger );
 
+				// Add a folder for the OCVF parameters:
 				var folder3 = gui.addFolder( 'OCVF - Orbitsphere CVF (Eq 1.95)' );
                 folder3.add( effectController, "ocvfGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
 				folder3.add( effectController, "animateOCVF" ).onChange( dynamicValuesChanger );
-				folder3.add( effectController, "redOCVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-				folder3.add( effectController, "greenOCVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-				folder3.add( effectController, "blueOCVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                //folder3.add( effectController, "alphaOCVF", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+				folder3.addColor( effectController, "colorOCVF").onChange( dynamicValuesChanger );
 
+				// Add a folder for the Y parameters:
                 var folder4 = gui.addFolder( 'Y - Current Pattern Func (Eq 1.103)' );
                 folder4.add( effectController, "yGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
-                //folder4.add( yPoints_1_103, "visible" ).onChange( dynamicValuesChanger );
                 folder4.add( effectController, "animateY" ).onChange( dynamicValuesChanger );
-                folder4.add( effectController, "redY", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                folder4.add( effectController, "greenY", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                folder4.add( effectController, "blueY", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                //folder4.add( effectController, "alphaY", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+				folder4.addColor( effectController, "colorY").onChange( dynamicValuesChanger );
 
+				// Add a folder for the Yy parameters:
                 var folder5 = gui.addFolder( 'Y - Current Pattern Func (Eq 1.109)' );
                 folder5.add( effectController, "yyGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
-                //folder5.add( yPoints_1_109, "visible" ).onChange( dynamicValuesChanger );
                 folder5.add( effectController, "animateYy" ).onChange( dynamicValuesChanger );
-                folder5.add( effectController, "redYy", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                folder5.add( effectController, "greenYy", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                folder5.add( effectController, "blueYy", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                //folder5.add( effectController, "alphaYy", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
+				folder5.addColor( effectController, "colorYy").onChange( dynamicValuesChanger );
 
 				folder1.open();
 				folder2.open();
