@@ -54,8 +54,8 @@
 			#include <common>
 
 			uniform float cameraConstant;
-			uniform float wavesPerRing;
-            uniform float waveSpeed;
+			uniform float wavesPerRev;
+            		uniform float waveSpeed;
 			uniform float uTime;
 			uniform bool  animate;
 			uniform vec4  color;
@@ -65,8 +65,8 @@
 			void main() {
 			
 				if(animate) {
-                    float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRing) * wavesPerRing;
-					//float bright = (cos((2.0*3.1416*waveSpeed*uTime*wavesPerRing)+(2.0*3.1416*uv.y*wavesPerRing)) + 1.0) * 0.5;
+                    float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRev) * wavesPerRev;
+					//float bright = (cos((2.0*3.1416*waveSpeed*uTime*wavesPerRev)+(2.0*3.1416*uv.y*wavesPerRev)) + 1.0) * 0.5;
                     vColor = vec4( (1.0-bright)*color[0], (1.0-bright)*color[1], (1.0-bright)*color[2], color[3] );
 				} else {
                     vColor = color;
@@ -204,7 +204,7 @@
 					// Can be changed dynamically
                     radius: 100.0,
                     waveSpeed: 0.50,
-					wavesPerRing: 2.0,
+					wavesPerRev: 2.0,
 
                     gridBrightness: 0.4,
                     alphaGrid:  1.0,
@@ -309,7 +309,7 @@
 					cameraConstant: { value: getCameraConstant( camera ) },
 					uTime: {value: 0.0},
                     waveSpeed: { value: 0.25 },
-					wavesPerRing: { value: 2.0 },
+					wavesPerRev: { value: 2.0 },
 					animate: { value: true },
 					color: { value: new THREE.Vector4([0.0, 0.0, 1.0, 1.0]) }
 				};
@@ -394,7 +394,7 @@
 					cameraConstant: { value: getCameraConstant( camera ) },
 					uTime: {value: 0.0},
                     waveSpeed: { value: 0.25 },
-					wavesPerRing: { value: 2.0 },
+					wavesPerRev: { value: 2.0 },
 					animate: { value: true },
 					color: {value: new THREE.Vector4([1.0, 0.0, 0.0, 1.0])}
 				};
@@ -495,7 +495,7 @@
                     cameraConstant: { value: getCameraConstant( camera ) },
                     uTime: {value: 0.0},
                     waveSpeed: { value: 0.25 },
-                    wavesPerRing: { value: 2.0 },
+                    wavesPerRev: { value: 2.0 },
                     animate: { value: true },
 					color: {value: new THREE.Vector4([0.0, 1.0, 0.0, 1.0])}
                 };
@@ -600,7 +600,7 @@
                     cameraConstant: { value: getCameraConstant( camera ) },
                     uTime:      { value: 0.0 },
                     waveSpeed:  { value: 0.25 },
-                    wavesPerRing: { value: 2.0 },
+                    wavesPerRev: { value: 2.0 },
                     animate:    { value: true },
 					color: 		{ value: new THREE.Vector4([0.0, 1.0, 0.0, 1.0]) }
                 };
@@ -772,7 +772,7 @@
                     becvfLines.visible = true;
                 }
                 becvfUniforms.waveSpeed.value = effectController.waveSpeed;
-				becvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
+				becvfUniforms.wavesPerRev.value = effectController.wavesPerRev;
 				becvfUniforms.animate.value = effectController.animateBECVF;
 				becvfUniforms.color.value   = [effectController.colorBECVF[0]/255.0, 
 												effectController.colorBECVF[1]/255.0,
@@ -790,7 +790,7 @@
                     ocvfLines.visible = true;
                 }
                 ocvfUniforms.waveSpeed.value = effectController.waveSpeed;
-				ocvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
+				ocvfUniforms.wavesPerRev.value = effectController.wavesPerRev;
 				ocvfUniforms.animate.value = effectController.animateOCVF;
 				ocvfUniforms.color.value   = [effectController.colorOCVF[0]/255.0, 
 											effectController.colorOCVF[1]/255.0,
@@ -798,7 +798,7 @@
 											effectController.colorOCVF[3]];
 
                 yUniforms_1_103.waveSpeed.value = effectController.waveSpeed;
-                yUniforms_1_103.wavesPerRing.value = effectController.wavesPerRing;
+                yUniforms_1_103.wavesPerRev.value = effectController.wavesPerRev;
                 yUniforms_1_103.animate.value = effectController.animateY;
 				yUniforms_1_103.color.value   = [effectController.colorY[0]/255.0, 
 												effectController.colorY[1]/255.0,
@@ -816,7 +816,7 @@
                 }
 
                 yUniforms_1_109.waveSpeed.value = effectController.waveSpeed;
-                yUniforms_1_109.wavesPerRing.value = effectController.wavesPerRing;
+                yUniforms_1_109.wavesPerRev.value = effectController.wavesPerRev;
                 yUniforms_1_109.animate.value = effectController.animateYy;
 				yUniforms_1_109.color.value   = [effectController.colorYy[0]/255.0, 
 												effectController.colorYy[1]/255.0,
@@ -841,7 +841,7 @@
 				// Add a folder to hold all the common parameters:
 				var folder1 = gui.addFolder( 'Common parameters' );
                 folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
-				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
+				folder1.add( effectController, "wavesPerRev", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 				// folder1.add( effectController, "alphaGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
                 folder1.add( effectController, "enableBlkSphere" ).onChange( dynamicValuesChanger );
