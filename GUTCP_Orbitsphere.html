@@ -12,7 +12,6 @@
 				font-family:Monospace;
 				font-size:13px;
 				text-align:center;
-				text-align:center;
 				cursor: pointer;
 			}
 
@@ -41,11 +40,11 @@
             <br> Select points per great circle: <span id="options"></span><br/>
         </div>
 
-		<script src="https://threejs.org/build/three.js"></script>
-		<script src="https://threejs.org/examples/js/Detector.js"></script>
-		<script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
-		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
-		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+		<script src="./three.js/build/three.js"></script>
+		<script src="./three.js/examples/js/Detector.js"></script>
+		<script src="./three.js/examples/js/libs/stats.min.js"></script>
+		<script src="./three.js/examples/js/libs/dat.gui.min.js"></script>
+		<script src="./three.js/examples/js/controls/OrbitControls.js"></script>
 
         <!-- VERTICES vertex shader - Use this to update the position due to camera projection -->
 		<script id="cvfVertexShader" type="x-shader/x-vertex">
@@ -53,9 +52,9 @@
 			// For PI declaration:
 			#include <common>
 
-			uniform float cameraConstant;
-			uniform float wavesPerRev;
-            		uniform float waveSpeed;
+			//uniform float cameraConstant;
+			uniform float wavesPerRing;
+            uniform float waveSpeed;
 			uniform float uTime;
 			uniform bool  animate;
 			uniform vec4  color;
@@ -65,16 +64,43 @@
 			void main() {
 			
 				if(animate) {
-                    float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRev) * wavesPerRev;
-					//float bright = (cos((2.0*3.1416*waveSpeed*uTime*wavesPerRev)+(2.0*3.1416*uv.y*wavesPerRev)) + 1.0) * 0.5;
+                    float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRing) * wavesPerRing;
+					//float bright = (cos((2.0*3.1416*waveSpeed*uTime*wavesPerRing)+(2.0*3.1416*uv.y*wavesPerRing)) + 1.0) * 0.5;
                     vColor = vec4( (1.0-bright)*color[0], (1.0-bright)*color[1], (1.0-bright)*color[2], color[3] );
 				} else {
                     vColor = color;
 				}
-
-				vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
 				
+				vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
 				gl_PointSize = 3.0;
+				gl_Position = projectionMatrix * mvPosition;
+			}
+
+		</script>
+
+        <!-- Heatmap vertex shader - Use this to update the position due to camera projection -->
+		<script id="heatmapVertexShader" type="x-shader/x-vertex">
+
+			// For PI declaration:
+			#include <common>
+
+			//uniform float cameraConstant;
+			uniform vec4  color;
+			uniform float maxHistogramValue;
+
+			varying vec4 vColor;
+
+			void main() {
+				// UV.x contains histogram value
+				// UV.y contains ???
+				if(maxHistogramValue > 0.0) {
+					vColor = (1.0 / maxHistogramValue) * uv.x * color;
+				} else {
+					vColor = 0.0;
+				}
+				
+				vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
+				gl_PointSize = 2.0;
 				gl_Position = projectionMatrix * mvPosition;
 			}
 
@@ -86,7 +112,7 @@
             // For PI declaration:
             #include <common>
 
-            uniform float cameraConstant;
+            //uniform float cameraConstant;
             uniform float gridBrightness;
             uniform float alphaGrid;
 
@@ -97,7 +123,6 @@
                 vColor = vec4( gridBrightness, gridBrightness, gridBrightness, alphaGrid );
 
                 vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
-
                 gl_PointSize = 2.0;
                 gl_Position = projectionMatrix * mvPosition;
             }
@@ -161,16 +186,11 @@
 				document.getElementById( 'warning' ).innerText = 'particle counts greater than 16 may not render with ' + ( isEdge ? 'Edge' : 'IE11' );
 			}
 
-            var becvfPoints;
-            var becvfLines;
-			var becvfUniforms;
+			var becvf;
+			var ocvf;
 
-            var ocvfPoints;
-            var ocvfLines;
-			var ocvfUniforms;
-
-            var yPoints_1_103;
-            var yPoints_1_109;
+            var y103;
+            var y109;
             
             var blackSphere;
 
@@ -178,6 +198,279 @@
             var gridUniforms;
 
             var effectController;
+            
+            var heatmapGeometry;
+            var i_n = 0;
+            var i_m = 0;
+            var i_p = 0;
+            
+            var i_N = 0;
+            var i_M = 0;
+            var i_P = 0;
+
+            // Geometry object based on GUTCP equations, selected using "mode" variable:
+            //     BECVF (Eq 1.84)  : mode == 1 
+            //     OCVF  (Eq 1.95)  : mode == 2 
+            // Y00 BECVF (Eq 1.103) : mode == 3
+            // Y00 OCVF  (Eq 1.109) : mode == 4
+            class CVF {
+			
+				// Returns a two-element array containing geometry and uv for GUTCP Current-Vector Fields.
+				// mode 1 - returns a BECVF geometry
+				// mode 2 - returns a OCVF geometry
+				static createCvfGeometry (mode, radius, THETA, PSI) {
+						// Storage for all the locations for the geometry:
+						var positions = new Float32Array( THETA * PSI * 3 );
+						var uvs = new Float32Array( THETA * PSI * 2 );
+					
+						// Local loop variables:
+						var p = 0;
+						var theta = 0.0;
+						var psi = 0.0;
+						var cvfRot = [];
+
+						// Populate the BECVF vertices in positions:
+						for ( var i = 0; i < THETA; i++ ) {
+							theta = 2.0 * Math.PI * i / THETA;
+						
+							// Setup the 3x3 rotation matrix from GUTCP Eq(1.84)
+							if(mode == 1) {
+								cvfRot[0+0] = ( 0.5 + 0.5*Math.cos(theta));
+								cvfRot[0+1] = (-0.5 + 0.5*Math.cos(theta));
+								cvfRot[0+2] = (-0.70711*Math.sin(theta));
+								cvfRot[3+0] = (-0.5 + 0.5*Math.cos(theta));
+								cvfRot[3+1] = ( 0.5 + 0.5*Math.cos(theta)); 
+								cvfRot[3+2] = (-0.70711*Math.sin(theta));
+								cvfRot[6+0] = ( 0.70711*Math.sin(theta));
+								cvfRot[6+1] = ( 0.70711*Math.sin(theta));
+								cvfRot[6+2] = (Math.cos(theta));
+							} else {
+								cvfRot[0+0] = ( 0.25 * (1.0 + 3.0*Math.cos(theta)));
+								cvfRot[0+1] = ( 0.25 * (-1.0 + Math.cos(theta) + 2.0 * 1.414 * Math.sin(theta)));
+								cvfRot[0+2] = ( 0.25 * (-1.414 + 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
+								cvfRot[3+0] = ( 0.25 * (-1.0 + Math.cos(theta) - 2.0 * 1.414 * Math.sin(theta)));
+								cvfRot[3+1] = ( 0.25 * (1.0 + 3.0*Math.cos(theta))); 
+								cvfRot[3+2] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
+								cvfRot[6+0] = ( 0.5 * (((-1 + Math.cos(theta))/1.414) + Math.sin(theta)));
+								cvfRot[6+1] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) + 2.0 * Math.sin(theta)));
+								cvfRot[6+2] = (Math.cos(theta*0.5) * Math.cos(theta*0.5));
+							}
+						
+							var cvf;
+							for ( var j = 0; j < PSI; j++ ) {
+								if(mode == 1) {
+									psi = 2.0 * Math.PI * j / PSI;
+									cvf = [0.0, (radius * Math.cos(psi)), (-radius * Math.sin(psi))];
+								} else {
+									psi = 2.0 * Math.PI * j / WIDTH + 0.5 * Math.PI;  // Half-PI phase addition is to correct a kink visual artefact
+									cvf = [(0.707*effectController.radius * Math.cos(psi)), 
+										   (0.707*effectController.radius * Math.cos(psi)), 
+										   (-effectController.radius * Math.sin(psi))];
+								}
+								positions[ p++ ] = cvf[0]*cvfRot[0+0] + cvf[1]*cvfRot[0+1] + cvf[2]*cvfRot[0+2];
+								positions[ p++ ] = cvf[0]*cvfRot[3+0] + cvf[1]*cvfRot[3+1] + cvf[2]*cvfRot[3+2]; 
+								positions[ p++ ] = cvf[0]*cvfRot[6+0] + cvf[1]*cvfRot[6+1] + cvf[2]*cvfRot[6+2];
+							}
+						}
+
+						p = 0;
+						// Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
+						for ( var j = 0; j < THETA; j++ ) {
+							for ( var i = 0; i < PSI; i++ ) {
+								uvs[ p++ ] = i / ( PSI - 1 );
+								uvs[ p++ ] = j / ( THETA - 1 );
+							}
+						}
+					var retval = [];
+					retval[0] = positions;
+					retval[1] = uvs;
+					return retval;
+				}
+			
+				static createY00Geometry (mode, radius, N, M, PSI) {
+					// Storage for all the locations for the BECVF:
+					var positions = new Float32Array( (M * N * PSI) * 3 );
+					var uvs = new Float32Array( (M * N * PSI) * 2 );
+					var p = 0;
+					var psi = 0.0;
+
+					for (var m = 1; m <= M; m++) {
+						var m2piONm = 2.0 * Math.PI * m / M;
+						var m_matrix = [];
+
+						// The m_matrix is identical for both Y00 geometry types:
+						m_matrix[0+0] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
+						m_matrix[0+1] = (0.25 * (-1.0 + Math.cos(m2piONm) + 2.828 * Math.sin(m2piONm)));
+						m_matrix[0+2] = (0.25 * (-1.414 + 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
+						m_matrix[3+0] = (0.25 * (-1.0 + Math.cos(m2piONm) - 2.828 * Math.sin(m2piONm)));
+						m_matrix[3+1] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
+						m_matrix[3+2] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
+						m_matrix[6+0] = (0.5 * (0.707 * (-1.0 + Math.cos(m2piONm)) + Math.sin(m2piONm)));
+						m_matrix[6+1] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) + 2.0 * Math.sin(m2piONm)));
+						m_matrix[6+2] = (Math.cos(0.5 * m2piONm) * Math.cos(0.5 * m2piONm));
+						
+						for (var n = 1; n <= N; n++) {
+							var n2piONn = 2.0 * Math.PI * n / N;
+							var n_matrix = [];
+							// n_matrix is different, dependent on Y00 geometry type:
+							if(mode == 1) {
+									n_matrix[0+0] = (0.5 + 0.5 * Math.cos(n2piONn));
+									n_matrix[0+1] = (-0.5 + 0.5 * Math.cos(n2piONn));
+									n_matrix[0+2] = (-Math.sin(n2piONn) * 0.707);
+									n_matrix[3+0] = (-0.5 + 0.5 * Math.cos(n2piONn));
+									n_matrix[3+1] = (0.5 + 0.5 * Math.cos(n2piONn));
+									n_matrix[3+2] = (-Math.sin(n2piONn) * 0.707);
+									n_matrix[6+0] = (Math.sin(n2piONn) * 0.707);
+									n_matrix[6+1] = (Math.sin(n2piONn) * 0.707);
+									n_matrix[6+2] = (Math.cos(n2piONn));
+							} else {
+									n_matrix[0+0] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+									n_matrix[0+1] = (0.707 * Math.cos(n2piONn) + 0.707 * Math.sin(n2piONn));
+									n_matrix[0+2] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+									n_matrix[3+0] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+									n_matrix[3+1] = (0.707 * Math.cos(n2piONn) - 0.707 * Math.sin(n2piONn));
+									n_matrix[3+2] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+									n_matrix[6+0] = (-0.707);
+									n_matrix[6+1] = (0.0);
+									n_matrix[6+2] = (0.707);
+							}
+
+							for (var i = 0; i < PSI; i++) {
+								psi = 2.0 * Math.PI * i / PSI;
+								var becvf ;
+								if(mode == 1) {
+									becvf = [(0.0),
+											 (effectController.radius * Math.cos(psi)),
+											 (-effectController.radius * Math.sin(psi))];
+								} else {
+									becvf = [(effectController.radius * Math.cos(psi)),
+											 (effectController.radius * Math.sin(psi)),
+											 (0.0)];
+								}
+								var tx = n_matrix[0+0] * becvf[0] + n_matrix[0+1] * becvf[1] + n_matrix[0+2] * becvf[2];
+								var ty = n_matrix[3+0] * becvf[0] + n_matrix[3+1] * becvf[1] + n_matrix[3+2] * becvf[2];
+								var tz = n_matrix[6+0] * becvf[0] + n_matrix[6+1] * becvf[1] + n_matrix[6+2] * becvf[2];
+
+								positions[p++] = m_matrix[0+0] * tx + m_matrix[0+1] * ty + m_matrix[0+2] * tz;
+								positions[p++] = m_matrix[3+0] * tx + m_matrix[3+1] * ty + m_matrix[3+2] * tz;
+								positions[p++] = m_matrix[6+0] * tx + m_matrix[6+1] * ty + m_matrix[6+2] * tz;
+							}
+						}
+					}
+
+					p=0;
+					// Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
+					for ( var j = 1; j <= M; j++ ) {
+						for ( var i = 1; i <= N; i++ ) {
+							for(var k = 0; k < PSI; ++k) {
+								uvs[ p++ ] = k / ( PSI );
+								uvs[ p++ ] = k / ( PSI );
+							}
+						}
+					}
+					
+					var retval = [];
+					retval[0] = positions;
+					retval[1] = uvs;
+					return retval;
+				}
+				
+				// Construct a BECVF object with a radius of "radius", a rotation resolution of "THETA", and a 
+				// great-circle current-loop density of "PSI":
+				constructor(mode, radius, THETA, PSI) {
+
+					var cvfGeo;
+					if((mode == 1) || (mode == 2)) {
+						cvfGeo = CVF.createCvfGeometry (mode, radius, THETA, PSI);
+					} else { // assume mode == 3 or 4 if we get here
+						cvfGeo = CVF.createY00Geometry (mode-2, radius, THETA/5, THETA/5, PSI);
+					} 
+					
+					// The BECVF geometry, based on BufferGeometry for efficiency:
+					this.positions = cvfGeo[0];
+					this.uvs = cvfGeo[1];
+
+					this.geometry = new THREE.BufferGeometry();
+					// Add the vertices and uv arrays as attributes into the geometry:
+					this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.positions, 3 ) );
+					this.geometry.addAttribute( 'uv', new THREE.BufferAttribute( this.uvs, 2 ) );
+
+					// Variable handles for dat.gui to manipulate:
+					this.color = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
+					this.animate = true;
+					this.visibility = 'lines';
+					
+					// Create the shader uniforms:
+					this.cvfUniforms = {
+						//cameraConstant: { value: getCameraConstant( camera ) },
+						uTime: {value: 0.0},
+						waveSpeed: { value: 0.25 },
+						wavesPerRing: { value: 2.0 },
+						animate: { value: this.animate },
+						color: { value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) }
+					};
+					
+					// Create and initialise the ShaderMaterial:
+					this.material = new THREE.ShaderMaterial( {
+						uniforms:       this.cvfUniforms,
+						vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
+						fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
+					} );
+					this.material.extensions.drawBuffers = true;
+
+					// Create the Points geometry and load the into the scene:
+					this.cvfPoints = new THREE.Points( this.geometry, this.material );
+					this.cvfPoints.matrixAutoUpdate = false;
+					this.cvfPoints.updateMatrix();
+					this.cvfPoints.visible = false;
+
+					// Create the Lines geometry and load the into the scene:
+					this.cvfLines = new THREE.LineLoop( this.geometry, this.material );
+					this.cvfLines.matrixAutoUpdate = false;
+					this.cvfLines.updateMatrix();
+				}
+				
+				// Insert the geometries into the scenegraph's sceneObject:
+				insertScene(sceneObject) {
+					sceneObject.add(this.cvfPoints);
+					sceneObject.add(this.cvfLines);
+				}
+				
+				// Set the visible geometry. No point ever displaying both, as they use the SAME vertices:
+				setVisibility(value) {
+					this.visibility = value;
+					if(value == 'hide') {
+						this.cvfPoints.visible = false;
+						this.cvfLines.visible = false;
+					} else if(value == 'points') {
+						this.cvfPoints.visible = true;
+						this.cvfLines.visible = false;
+					} else if(value == 'lines') {
+						this.cvfPoints.visible = false;
+						this.cvfLines.visible = true;
+					} else { 								// expect 'lines'
+						this.cvfPoints.visible = false;
+						this.cvfLines.visible = false;
+						this.visibility = 'hide';
+					}
+				}
+				
+				// Select whether to animate or not:
+				setAnimate(value) {
+					this.cvfUniforms.animate.value = (value) ? true : false;
+				}
+				
+				// Little hack for dat.gui. Update the color by passing 4-element array in form [255, 128, 0, 1.0]:
+				setColor(value) {
+					this.color = value;
+					this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]];
+				}
+				
+				// Update the time for the shader to see:
+				setTime( tick_time ) {
+					this.cvfUniforms.uTime.value = tick_time;
+				}
+			}
 
 			init();
 			animate();
@@ -204,29 +497,14 @@
 					// Can be changed dynamically
                     radius: 100.0,
                     waveSpeed: 0.50,
-					wavesPerRev: 2.0,
+					wavesPerRing: 2.0,
 
-                    gridBrightness: 0.4,
+                    gridBrightness: 0.3,
                     alphaGrid:  1.0,
                     enableBlkSphere: false,
 
-                    becvfGeometry: 'lines',
-					showBECVF: true,
-					animateBECVF: true,
-					colorBECVF: [255, 0, 0, 1.0],
-
-                    ocvfGeometry: 'lines',
-					showOCVF: true,
-					animateOCVF: true,
-					colorOCVF: [0, 0, 255, 1.0],
-
-                    yGeometry: 'hide',
-                    animateY: true,
-					colorY: [0, 255, 0, 1.0],
-
-                    yyGeometry:  'hide',
-                    animateYy: true,
-					colorYy: [255, 0, 255, 1.0]
+					enableY00CurrentDensity: false,
+					colorY00cd: [0, 255, 0, 1.0]
 				};
 
 				//initComputeRenderer();
@@ -237,407 +515,126 @@
 				window.addEventListener( 'resize', onWindowResize, false );
 
                 initGrid();
-				initBECVF();
-				initOCVF();
-                initY_1_103();
-                initY_1_109();
-                init_CurrentDensity();
-
+                init_BlackSphere();
+				
+				becvf = new CVF(1, 100.0, WIDTH, WIDTH);
+				becvf.insertScene(scene);
+				
+				ocvf = new CVF(2, 100.0, WIDTH, WIDTH);
+				ocvf.setColor([0, 0, 255, 1.0]);
+				ocvf.insertScene(scene);
+				
+				y103 = new CVF(3, 100.0, WIDTH, WIDTH, WIDTH);
+				y103.setColor([0, 255, 0, 1.0]);
+				y103.setVisibility('hide');
+				y103.insertScene(scene);
+				
+				y109 = new CVF(4, 100.0, WIDTH, WIDTH, WIDTH);
+				y109.setColor([255, 0, 255, 1.0]);
+				y109.setVisibility('hide');
+				y109.insertScene(scene);
+				
                 initGUI();
 
 				dynamicValuesChanger();
 			}
 			
-            // Geometry based on GUTCP Equation 1.84:
-			function initBECVF() {
-
-				geometry = new THREE.BufferGeometry();
-
-				// Storage for all the locations for the BECVF:
-				var positions = new Float32Array( VERTICES * 3 );
-				var uvs = new Float32Array( VERTICES * 2 );
-				var p = 0;
-				var theta = 0.0;
-				var psi = 0.0;
-
-
-				// Populate the BECVF positions:
-				for ( var i = 0; i < WIDTH; i++ ) {
-				
-					theta = 2.0 * Math.PI * i / WIDTH;
-					// Setup the 3x3 rotation matrix from GUTCP Eq(1.84)
-					var becvfRot = new Float32Array(9);
-					becvfRot[0+0] = ( 0.5 + 0.5*Math.cos(theta));
-					becvfRot[0+1] = (-0.5 + 0.5*Math.cos(theta));
-					becvfRot[0+2] = (-0.70711*Math.sin(theta));
-					becvfRot[3+0] = (-0.5 + 0.5*Math.cos(theta));
-					becvfRot[3+1] = ( 0.5 + 0.5*Math.cos(theta)); 
-					becvfRot[3+2] = (-0.70711*Math.sin(theta));
-					becvfRot[6+0] = ( 0.70711*Math.sin(theta));
-					becvfRot[6+1] = ( 0.70711*Math.sin(theta));
-					becvfRot[6+2] = (Math.cos(theta));
-					
-					for ( var j = 0; j < WIDTH; j++ ) {
-					
-						psi = 2.0 * Math.PI * j / WIDTH;
-						
-						var becvf1 = new Float32Array([0.0, (effectController.radius * Math.cos(psi)), (-effectController.radius * Math.sin(psi))]);
-						
-						positions[ p++ ] = becvf1[0]*becvfRot[0+0] + becvf1[1]*becvfRot[0+1] + becvf1[2]*becvfRot[0+2];
-						positions[ p++ ] = becvf1[0]*becvfRot[3+0] + becvf1[1]*becvfRot[3+1] + becvf1[2]*becvfRot[3+2]; 
-						positions[ p++ ] = becvf1[0]*becvfRot[6+0] + becvf1[1]*becvfRot[6+1] + becvf1[2]*becvfRot[6+2];
-					}
-				}
-
-				p = 0;
-				// Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
-				for ( var j = 0; j < WIDTH; j++ ) {
-
-					for ( var i = 0; i < WIDTH; i++ ) {
-
-						uvs[ p++ ] = i / ( WIDTH - 1 );
-						uvs[ p++ ] = j / ( WIDTH - 1 );
-					}
-				}
-
-				geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-				geometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-
-				becvfUniforms = {
-					//texturePosition: { value: null },
-					//textureVelocity: { value: null },
-					cameraConstant: { value: getCameraConstant( camera ) },
-					uTime: {value: 0.0},
-                    waveSpeed: { value: 0.25 },
-					wavesPerRev: { value: 2.0 },
-					animate: { value: true },
-					color: { value: new THREE.Vector4([0.0, 0.0, 1.0, 1.0]) }
-				};
-
-				// ShaderMaterial
-				var material = new THREE.ShaderMaterial( {
-					uniforms:       becvfUniforms,
-					vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
-					fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
-				} );
-				material.extensions.drawBuffers = true;
-
-                becvfPoints = new THREE.Points( geometry, material );
-                becvfPoints.matrixAutoUpdate = false;
-				becvfPoints.updateMatrix();
-                scene.add( becvfPoints );
-
-                becvfLines = new THREE.LineLoop( geometry, material );
-                becvfLines.matrixAutoUpdate = false;
-                becvfLines.updateMatrix();
-                scene.add( becvfLines );
-			}
-
-            // Geometry based on GUTCP Equation 1.95:
-			function initOCVF() {
-
-				geometry = new THREE.BufferGeometry();
-
-				// Storage for all the locations for the BECVF:
-				var positions = new Float32Array( VERTICES * 3 );
-				var uvs = new Float32Array( VERTICES * 2 );
-				var p = 0;
-				var theta = 0.0;
-				var psi = 0.0;
-
-				// Populate the BECVF positions:
-				for ( var i = 0; i < WIDTH; i++ ) {
-				
-					theta = 2.0 * Math.PI * i / WIDTH;
-					// Setup the 3x3 rotation matrix from GUTCP Eq(1.84)
-					var ocvfRot = new Float32Array(9);
-					ocvfRot[0+0] = ( 0.25 * (1.0 + 3.0*Math.cos(theta)));
-					ocvfRot[0+1] = ( 0.25 * (-1.0 + Math.cos(theta) + 2.0 * 1.414 * Math.sin(theta)));
-					ocvfRot[0+2] = ( 0.25 * (-1.414 + 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
-					ocvfRot[3+0] = ( 0.25 * (-1.0 + Math.cos(theta) - 2.0 * 1.414 * Math.sin(theta)));
-					ocvfRot[3+1] = ( 0.25 * (1.0 + 3.0*Math.cos(theta))); 
-					ocvfRot[3+2] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
-					ocvfRot[6+0] = ( 0.5 * (((-1 + Math.cos(theta))/1.414) + Math.sin(theta)));
-					ocvfRot[6+1] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) + 2.0 * Math.sin(theta)));
-					ocvfRot[6+2] = (Math.cos(theta*0.5) * Math.cos(theta*0.5));
-					
-					for ( var j = 0; j < WIDTH; j++ ) {
-					
-						psi = 2.0 * Math.PI * j / WIDTH + 0.5 * Math.PI;  // Half-PI phase addition is to correct a kink artefact
-						var ocvf = new Float32Array([(0.707*effectController.radius * Math.cos(psi)), 
-													  (0.707*effectController.radius * Math.cos(psi)), 
-													  (-effectController.radius * Math.sin(psi))]);
-
-						positions[ p++ ] = ocvf[0]*ocvfRot[0+0] + ocvf[1]*ocvfRot[0+1] + ocvf[2]*ocvfRot[0+2];
-						positions[ p++ ] = ocvf[0]*ocvfRot[3+0] + ocvf[1]*ocvfRot[3+1] + ocvf[2]*ocvfRot[3+2]; 
-						positions[ p++ ] = ocvf[0]*ocvfRot[6+0] + ocvf[1]*ocvfRot[6+1] + ocvf[2]*ocvfRot[6+2];
-					}
-				}
-
-				p=0;
-				// Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
-				for ( var j = 0; j < WIDTH; j++ ) {
-
-					for ( var i = 0; i < WIDTH; i++ ) {
-
-						uvs[ p++ ] = i / ( WIDTH - 1 );
-						uvs[ p++ ] = j / ( WIDTH - 1 );
-					}
-				}
-
-				geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-				geometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-
-				ocvfUniforms = {
-					//texturePosition: { value: null },
-					//textureVelocity: { value: null },
-					cameraConstant: { value: getCameraConstant( camera ) },
-					uTime: {value: 0.0},
-                    waveSpeed: { value: 0.25 },
-					wavesPerRev: { value: 2.0 },
-					animate: { value: true },
-					color: {value: new THREE.Vector4([1.0, 0.0, 0.0, 1.0])}
-				};
-
-				// ShaderMaterial
-				var material = new THREE.ShaderMaterial( {
-					uniforms:       ocvfUniforms,
-					vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
-					fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
-				} );
-				material.extensions.drawBuffers = true;
-
-                ocvfLines = new THREE.LineLoop( geometry, material );
-                ocvfLines.matrixAutoUpdate = false;
-                ocvfLines.updateMatrix();
-                scene.add( ocvfLines );
-
-                ocvfPoints = new THREE.Points( geometry, material );
-				ocvfPoints.matrixAutoUpdate = false;
-				ocvfPoints.updateMatrix();
-				scene.add( ocvfPoints );
-			}
-
-            // Geometry based on GUTCP Equation 1.103:
-            function initY_1_103() {
-
-				geometry = new THREE.BufferGeometry();
-
-                // Storage for all the locations for the BECVF:
-                var M = WIDTH / 5;
-                var N = WIDTH / 5;
-                var positions = new Float32Array( (M * N * WIDTH) * 3 );
-                var uvs = new Float32Array( (M * N * WIDTH) * 2 );
-                var p = 0;
-                var psi = 0.0;
-
-                for (var m = 1; m <= M; m++) {
-                    var m2piONm = 2.0 * Math.PI * m / M;
-                    var m_matrix = new Float32Array(9);
-
-                    m_matrix[0+0] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
-                    m_matrix[0+1] = (0.25 * (-1.0 + Math.cos(m2piONm) + 2.828 * Math.sin(m2piONm)));
-                    m_matrix[0+2] = (0.25 * (-1.414 + 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
-                    m_matrix[3+0] = (0.25 * (-1.0 + Math.cos(m2piONm) - 2.828 * Math.sin(m2piONm)));
-                    m_matrix[3+1] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
-                    m_matrix[3+2] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
-                    m_matrix[6+0] = (0.5 * (0.707 * (-1.0 + Math.cos(m2piONm)) + Math.sin(m2piONm)));
-                    m_matrix[6+1] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) + 2.0 * Math.sin(m2piONm)));
-                    m_matrix[6+2] = (Math.cos(0.5 * m2piONm) * Math.cos(0.5 * m2piONm));
-
-                    for (var n = 1; n <= N; n++) {
-                        var n2piONn = 2.0 * Math.PI * n / N;
-                        var n_matrix = new Float32Array(9);
-
-                        n_matrix[0+0] = (0.5 + 0.5 * Math.cos(n2piONn));
-                        n_matrix[0+1] = (-0.5 + 0.5 * Math.cos(n2piONn));
-                        n_matrix[0+2] = (-Math.sin(n2piONn) * 0.707);
-                        n_matrix[3+0] = (-0.5 + 0.5 * Math.cos(n2piONn));
-                        n_matrix[3+1] = (0.5 + 0.5 * Math.cos(n2piONn));
-                        n_matrix[3+2] = (-Math.sin(n2piONn) * 0.707);
-                        n_matrix[6+0] = (Math.sin(n2piONn) * 0.707);
-                        n_matrix[6+1] = (Math.sin(n2piONn) * 0.707);
-                        n_matrix[6+2] = (Math.cos(n2piONn));
-
-                        for (var i = 0; i < WIDTH; i++) {
-                            psi = 2.0 * Math.PI * i / WIDTH;
-                            var becvf = new Float32Array([(0.0),
-                                                          (effectController.radius * Math.cos(psi)),
-                                                          (-effectController.radius * Math.sin(psi))]);
-
-                            var tx = n_matrix[0+0] * becvf[0] + n_matrix[0+1] * becvf[1] + n_matrix[0+2] * becvf[2];
-                            var ty = n_matrix[3+0] * becvf[0] + n_matrix[3+1] * becvf[1] + n_matrix[3+2] * becvf[2];
-                            var tz = n_matrix[6+0] * becvf[0] + n_matrix[6+1] * becvf[1] + n_matrix[6+2] * becvf[2];
-
-                            positions[p++] = m_matrix[0+0] * tx + m_matrix[0+1] * ty + m_matrix[0+2] * tz;
-                            positions[p++] = m_matrix[3+0] * tx + m_matrix[3+1] * ty + m_matrix[3+2] * tz;
-                            positions[p++] = m_matrix[6+0] * tx + m_matrix[6+1] * ty + m_matrix[6+2] * tz;
-                        }
-                    }
-                }
-
-                p=0;
-                // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
-                // TODO - do we really need a uv with this???
-                for ( var j = 1; j <= M; j++ ) {
-                    for ( var i = 1; i <= N; i++ ) {
-                        for(var k = 0; k < WIDTH; ++k) {
-                            uvs[ p++ ] = k / ( WIDTH );
-                            uvs[ p++ ] = k / ( WIDTH );
-                        }
-                    }
-                }
-
-                geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-                geometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-
-                yUniforms_1_103 = {
-                    cameraConstant: { value: getCameraConstant( camera ) },
-                    uTime: {value: 0.0},
-                    waveSpeed: { value: 0.25 },
-                    wavesPerRev: { value: 2.0 },
-                    animate: { value: true },
-					color: {value: new THREE.Vector4([0.0, 1.0, 0.0, 1.0])}
-                };
-                
-                // ShaderMaterial
-                var material = new THREE.ShaderMaterial( {
-                                                        uniforms:       yUniforms_1_103,
-                                                        vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
-                                                        fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
-                                                        } );
-                                                        material.extensions.drawBuffers = true;
-                                                        
-				yPoints_1_103 = new THREE.Points( geometry, material );
-				yPoints_1_103.matrixAutoUpdate = false;
-				yPoints_1_103.updateMatrix();
-				scene.add( yPoints_1_103 );
-                // Keep Y hidden initially:
-                yPoints_1_103.visible = false;
-                
-				yLines_1_103 = new THREE.LineLoop( geometry, material );
-				yLines_1_103.matrixAutoUpdate = false;
-				yLines_1_103.updateMatrix();
-				scene.add( yLines_1_103 );
-                // Keep Y hidden initially:
-                yLines_1_103.visible = false;
-            }
-
-            // Geometry based on GUTCP Equation 1.109:
-            function initY_1_109() {
-
-				geometry = new THREE.BufferGeometry();
-
-                // Storage for all the locations for the BECVF:
-                var M = WIDTH / 5;
-                var N = WIDTH / 5;
-                var positions = new Float32Array( (M * N * WIDTH) * 3 );
-                var uvs = new Float32Array( (M * N * WIDTH) * 2 );
-                var p = 0;
-                var psi = 0.0;
-
-                for (var m = 1; m <= M; m++) {
-                    var m2piONm = 2.0 * Math.PI * m / M;
-                    var m_matrix = new Float32Array(9);
-
-                    m_matrix[0+0] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
-                    m_matrix[0+1] = (0.25 * (-1.0 + Math.cos(m2piONm) + 2.828 * Math.sin(m2piONm)));
-                    m_matrix[0+2] = (0.25 * (-1.414 + 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
-                    m_matrix[3+0] = (0.25 * (-1.0 + Math.cos(m2piONm) - 2.828 * Math.sin(m2piONm)));
-                    m_matrix[3+1] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
-                    m_matrix[3+2] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
-                    m_matrix[6+0] = (0.5 * (0.707 * (-1.0 + Math.cos(m2piONm)) + Math.sin(m2piONm)));
-                    m_matrix[6+1] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) + 2.0 * Math.sin(m2piONm)));
-                    m_matrix[6+2] = (Math.cos(0.5 * m2piONm) * Math.cos(0.5 * m2piONm));
-
-                    for (var n = 1; n <= N; n++) {
-                        var n2piONn = 2.0 * Math.PI * n / N;
-                        var n_matrix = new Float32Array(9);
-
-                        n_matrix[0+0] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
-                        n_matrix[0+1] = (0.707 * Math.cos(n2piONn) + 0.707 * Math.sin(n2piONn));
-                        n_matrix[0+2] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
-                        n_matrix[3+0] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
-                        n_matrix[3+1] = (0.707 * Math.cos(n2piONn) - 0.707 * Math.sin(n2piONn));
-                        n_matrix[3+2] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
-                        n_matrix[6+0] = (-0.707);
-                        n_matrix[6+1] = (0.0);
-                        n_matrix[6+2] = (0.707);
-
-                        for (var i = 0; i < WIDTH; i++) {
-                            psi = 2.0 * Math.PI * i / WIDTH;
-                            var becvf = new Float32Array([(effectController.radius * Math.cos(psi)),
-                                                          (effectController.radius * Math.sin(psi)),
-                                                          (0.0)]);
-
-                                                          var tx = n_matrix[0+0] * becvf[0] + n_matrix[0+1] * becvf[1] + n_matrix[0+2] * becvf[2];
-                                                          var ty = n_matrix[3+0] * becvf[0] + n_matrix[3+1] * becvf[1] + n_matrix[3+2] * becvf[2];
-                                                          var tz = n_matrix[6+0] * becvf[0] + n_matrix[6+1] * becvf[1] + n_matrix[6+2] * becvf[2];
-
-                                                          positions[p++] = m_matrix[0+0] * tx + m_matrix[0+1] * ty + m_matrix[0+2] * tz;
-                                                          positions[p++] = m_matrix[3+0] * tx + m_matrix[3+1] * ty + m_matrix[3+2] * tz;
-                                                          positions[p++] = m_matrix[6+0] * tx + m_matrix[6+1] * ty + m_matrix[6+2] * tz;
-                        }
-                    }
-                }
-
-                p=0;
-                // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
-                // TODO - do we really need a uv with this???
-                for ( var j = 1; j <= M; j++ ) {
-                    for ( var i = 1; i <= N; i++ ) {
-                        for(var k = 0; k < WIDTH; ++k) {
-                            uvs[ p++ ] = k / ( WIDTH );
-                            uvs[ p++ ] = k / ( WIDTH );
-                        }
-                    }
-                }
-
-                geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-                geometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-
-                yUniforms_1_109 = {
-                    cameraConstant: { value: getCameraConstant( camera ) },
-                    uTime:      { value: 0.0 },
-                    waveSpeed:  { value: 0.25 },
-                    wavesPerRev: { value: 2.0 },
-                    animate:    { value: true },
-					color: 		{ value: new THREE.Vector4([0.0, 1.0, 0.0, 1.0]) }
-                };
-
-                // ShaderMaterial
-                var material = new THREE.ShaderMaterial( {
-                                                        uniforms:       yUniforms_1_109,
-                                                        vertexShader:   document.getElementById( 'cvfVertexShader' ).textContent,
-                                                        fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
-                                                        } );
-                                                        material.extensions.drawBuffers = true;
-
-				yPoints_1_109 = new THREE.Points( geometry, material );
-				yPoints_1_109.matrixAutoUpdate = false;
-				yPoints_1_109.updateMatrix();
-				scene.add( yPoints_1_109 );
-				// Keep Y hidden initially:
-				yPoints_1_109.visible = false;
-
-				yLines_1_109 = new THREE.LineLoop( geometry, material );
-				yLines_1_109.matrixAutoUpdate = false;
-				yLines_1_109.updateMatrix();
-				scene.add( yLines_1_109 );
-                // Keep Y hidden initially:
-                yLines_1_109.visible = false;
-            }
-
-			function init_CurrentDensity() {
+			function init_BlackSphere() {
 				// Create and insert a black sphere that can be used to obscure the back-half of the sphere.
 				// Make its radius 99, which is less than the 100 radius of the rest of anim.
-				geometry = new THREE.SphereBufferGeometry( 99, 32, 32 );
+				geometry = new THREE.SphereBufferGeometry( 97, 32, 32 );
 				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
 				blackSphere = new THREE.Mesh( geometry, material );
 				scene.add( blackSphere );            
 			}
 			
+			function init_CurrentDensity() {
+				// Heatmap specific stuff:
+				heatmapGeometry = new THREE.IcosahedronBufferGeometry( 98, 5 );
+				// Now find the closest vertex in the sphere to generate a density/heat map:
+				var heatmapVertices = heatmapGeometry.getAttribute('position');
+                //var heatmapColor = new Float32Array( heatmapVertices.count * 3 );
+                var heatmapHistogram = heatmapGeometry.getAttribute('uv');
+                
+                for(var i = 0; i < heatmapHistogram.count; i++) {
+                	heatmapHistogram.x = 0.0;
+                }
 
+                y00_F1_19Uniforms = {
+                    cameraConstant: 	{ value: getCameraConstant( camera ) },
+                    uTime:      		{ value: 0.0 },
+					color: 				{ value: new THREE.Vector4([0.0, 1.0, 0.0, 1.0]) },
+					maxHistogramValue: 	{ value: 0.0 }
+                };
+
+                // ShaderMaterial
+                var material = new THREE.ShaderMaterial( {
+                                                        uniforms:       y00_F1_19Uniforms,
+                                                        vertexShader:   document.getElementById( 'heatmapVertexShader' ).textContent,
+                                                        fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
+                                                        } );
+				material.extensions.drawBuffers = true;
+                //heatmapGeometry.addAttribute( 'color', new THREE.BufferAttribute( heatmapColor, 3 ) );
+
+                //var heatmapMaterial = new THREE.MeshBasicMaterial( {wireframe: false, vertexColors: THREE.VertexColors} );
+				//var heatmapMesh = new THREE.Mesh( heatmapGeometry, heatmapMaterial );
+				var heatmapMesh = new THREE.Mesh( heatmapGeometry, material );
+				scene.add( heatmapMesh );            
+			}
+			
+			function calcHistInPart(chunks) {
+				var count = 0;
+				// N:
+				for(;i_n < i_N; i_n++) {
+					// M:
+					for(;i_m < i_M; i_m++) {
+						// phi
+						for(; i_p < i_phi; i_p++) {
+							if(count <= chunks) {
+								// Do stuff:
+								var x = 0.0;
+								var y = 100.0 * Math.sin(i_p * 0.05);
+								var z = 100.0 * Math.cos(i_p * 0.05);
+								
+								var heatmapHistogram = heatmapGeometry.getAttribute('uv');
+								var highestValueInArray = 0.0;
+								
+								for(var j = 0; j < heatmapHistogram.count; j++) {
+									var range = Math.pow((heatmapVertices.array[j*3+0] - x), 2) +
+												Math.pow((heatmapVertices.array[j*3+1] - y), 2) +
+												Math.pow((heatmapVertices.array[j*3+2] - z), 2);
+									if (range < 144.0) {
+										heatmapHistogram[j].x += 1.0;
+									}
+									// Find highest value in array:
+									if(heatmapHistogram[j].x > highestValueInArray) highestValueInArray = heatmapHistogram[j].x;
+									//heatmapHistogram[j] += 1.0/range;
+								}
+								
+								/*
+								for(var i = 0; i < heatmapHistogram.count; i++) {
+									heatmapColor[i*3+0] = 0.00;  // Red
+									heatmapColor[i*3+1] = Math.pow(heatmapHistogram[i] / highestValueInArray, 2);  // Green
+									heatmapColor[i*3+2] = 0.00;  // Blue
+								}
+								*/
+							} else {
+								// Update the uniforms to flush it to the buffer:
+								y00_F1_19Uniforms.maxHistogramValue.value = highestValueInArray;
+								break;
+							}
+						}
+					}
+				}
+			}
+			
+			function addPointToHeatMap(i_vertex) {
+				var i_x = (heatmapVertices[i_vertex.x] / 20) + 5;
+				var i_y = (heatmapVertices[i_vertex.y] / 20) + 5;
+				var i_z = (heatmapVertices[i_vertex.z] / 20) + 5;
+				//var xIndices[i_x][i_y][i_z].push(i_vertex);
+			}
+			
             function initGrid() {
 
                 var GRIDPOINTS = 3;
@@ -747,7 +744,9 @@
 				camera.aspect = window.innerWidth / window.innerHeight;
 				camera.updateProjectionMatrix();
 				renderer.setSize( window.innerWidth, window.innerHeight );
-				becvfUniforms.cameraConstant.value = getCameraConstant( camera );
+				
+				// TODO - need to notify scene object shaders (via uniforms) here if required!
+				// becvfUniforms.cameraConstant.value = getCameraConstant( camera );
 			}
 
 			function dynamicValuesChanger() {
@@ -761,77 +760,15 @@
                 gridUniforms.alphaGrid.value = effectController.alphaGrid;
                 blackSphere.visible = effectController.enableBlkSphere;
 
-                if(effectController.becvfGeometry == 'hide') {
-                    becvfPoints.visible = false;
-                    becvfLines.visible = false;
-                } else if(effectController.becvfGeometry == 'points') {
-                        becvfPoints.visible = true;
-                        becvfLines.visible = false;
-                } else {
-                    becvfPoints.visible = false;
-                    becvfLines.visible = true;
-                }
-                becvfUniforms.waveSpeed.value = effectController.waveSpeed;
-				becvfUniforms.wavesPerRev.value = effectController.wavesPerRev;
-				becvfUniforms.animate.value = effectController.animateBECVF;
-				becvfUniforms.color.value   = [effectController.colorBECVF[0]/255.0, 
-												effectController.colorBECVF[1]/255.0,
-												effectController.colorBECVF[2]/255.0, 
-												effectController.colorBECVF[3]];
-
-                if(effectController.ocvfGeometry == 'hide') {
-                    ocvfPoints.visible = false;
-                    ocvfLines.visible = false;
-                } else if(effectController.ocvfGeometry == 'points') {
-                        ocvfPoints.visible = true;
-                        ocvfLines.visible = false;
-                } else {
-                    ocvfPoints.visible = false;
-                    ocvfLines.visible = true;
-                }
-                ocvfUniforms.waveSpeed.value = effectController.waveSpeed;
-				ocvfUniforms.wavesPerRev.value = effectController.wavesPerRev;
-				ocvfUniforms.animate.value = effectController.animateOCVF;
-				ocvfUniforms.color.value   = [effectController.colorOCVF[0]/255.0, 
-											effectController.colorOCVF[1]/255.0,
-											effectController.colorOCVF[2]/255.0, 
-											effectController.colorOCVF[3]];
-
-                yUniforms_1_103.waveSpeed.value = effectController.waveSpeed;
-                yUniforms_1_103.wavesPerRev.value = effectController.wavesPerRev;
-                yUniforms_1_103.animate.value = effectController.animateY;
-				yUniforms_1_103.color.value   = [effectController.colorY[0]/255.0, 
-												effectController.colorY[1]/255.0,
-												effectController.colorY[2]/255.0, 
-												effectController.colorY[3]];
-                if(effectController.yGeometry == 'hide') {
-                    yPoints_1_103.visible = false;
-                    yLines_1_103.visible = false;
-                } else if(effectController.yGeometry == 'points') {
-                        yPoints_1_103.visible = true;
-                        yLines_1_103.visible = false;
-                } else {
-                    yPoints_1_103.visible = false;
-                    yLines_1_103.visible = true;
-                }
-
-                yUniforms_1_109.waveSpeed.value = effectController.waveSpeed;
-                yUniforms_1_109.wavesPerRev.value = effectController.wavesPerRev;
-                yUniforms_1_109.animate.value = effectController.animateYy;
-				yUniforms_1_109.color.value   = [effectController.colorYy[0]/255.0, 
-												effectController.colorYy[1]/255.0,
-												effectController.colorYy[2]/255.0, 
-												effectController.colorYy[3]];
-                if(effectController.yyGeometry == 'hide') {
-                    yPoints_1_109.visible = false;
-                    yLines_1_109.visible = false;
-                } else if(effectController.yyGeometry == 'points') {
-                        yPoints_1_109.visible = true;
-                        yLines_1_109.visible = false;
-                } else {
-                    yPoints_1_109.visible = false;
-                    yLines_1_109.visible = true;
-                }
+                becvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+				becvf.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
+                ocvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+				ocvf.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
+				
+                y103.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+				y103.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
+                y109.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+				y109.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
 			}
 
 			function initGUI() {
@@ -841,40 +778,46 @@
 				// Add a folder to hold all the common parameters:
 				var folder1 = gui.addFolder( 'Common parameters' );
                 folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
-				folder1.add( effectController, "wavesPerRev", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
+				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 				// folder1.add( effectController, "alphaGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
                 folder1.add( effectController, "enableBlkSphere" ).onChange( dynamicValuesChanger );
 
 				// Add a folder for the BECVF parameters:
 				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
-                folder2.add( effectController, "becvfGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
-				folder2.add( effectController, "animateBECVF" ).onChange( dynamicValuesChanger );
-				folder2.addColor( effectController, "colorBECVF").onChange( dynamicValuesChanger );
+                folder2.add( becvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { becvf.setVisibility(value); } );
+				folder2.add( becvf, "animate" ).onChange( function(value) { becvf.setAnimate(value); } );
+				folder2.addColor( becvf, "color").onChange( function(value) { becvf.setColor(value); } );
 
 				// Add a folder for the OCVF parameters:
 				var folder3 = gui.addFolder( 'OCVF - Orbitsphere CVF (Eq 1.95)' );
-                folder3.add( effectController, "ocvfGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
-				folder3.add( effectController, "animateOCVF" ).onChange( dynamicValuesChanger );
-				folder3.addColor( effectController, "colorOCVF").onChange( dynamicValuesChanger );
+                folder3.add( ocvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { ocvf.setVisibility(value); } );
+				folder3.add( ocvf, "animate" ).onChange( function(value) { ocvf.setAnimate(value); } );
+				folder3.addColor( ocvf, "color").onChange( function(value) { ocvf.setColor(value); } );
 
 				// Add a folder for the Y parameters:
-                var folder4 = gui.addFolder( 'Y - Current Pattern Func (Eq 1.103)' );
-                folder4.add( effectController, "yGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
-                folder4.add( effectController, "animateY" ).onChange( dynamicValuesChanger );
-				folder4.addColor( effectController, "colorY").onChange( dynamicValuesChanger );
+                var folder4 = gui.addFolder( 'Y00 - Current Pattern Func (Eq 1.103)' );
+                folder4.add( y103, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y103.setVisibility(value); } );
+                folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
+				folder4.addColor( y103, "color").onChange( function(value) { y103.setColor(value); } );
 
 				// Add a folder for the Yy parameters:
-                var folder5 = gui.addFolder( 'Y - Current Pattern Func (Eq 1.109)' );
-                folder5.add( effectController, "yyGeometry", ['hide', 'points', 'lines'] ).onChange( dynamicValuesChanger );
-                folder5.add( effectController, "animateYy" ).onChange( dynamicValuesChanger );
-				folder5.addColor( effectController, "colorYy").onChange( dynamicValuesChanger );
+                var folder5 = gui.addFolder( 'Y00 - Current Pattern Func (Eq 1.109)' );
+                folder5.add( y109, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y109.setVisibility(value); } );
+                folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
+				folder5.addColor( y109, "color").onChange( function(value) { y109.setColor(value); } );
+
+				// Add a folder for the Yy parameters:
+                //var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19)' );
+                //folder6.add( effectController, "enableY00CurrentDensity" ).onChange( dynamicValuesChanger );
+				//folder6.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
+				//folder6.addColor( effectController, "colorY00cd").onChange( dynamicValuesChanger );
 
 				folder1.open();
 				folder2.open();
 				folder3.open();
-                folder4.open();
-                folder5.open();
+                // folder4.open();
+                // folder5.open();
 			}
 
 			function getCameraConstant( camera ) {
@@ -889,10 +832,10 @@
 				if ( tick < 0 ) tick = 0;
 				
 				// Update the material uniforms with the time, to pass on the elapsed time:
-				becvfUniforms.uTime.value = tick;
-				ocvfUniforms.uTime.value = tick;
-                yUniforms_1_103.uTime.value = tick;
-                yUniforms_1_109.uTime.value = tick;
+				becvf.setTime(tick);
+				ocvf.setTime(tick);
+				y103.setTime(tick);
+				y109.setTime(tick);
 
 				// Tell WebGL to call the 'animate()' function for the next screen refresh:
 				requestAnimationFrame( animate );
