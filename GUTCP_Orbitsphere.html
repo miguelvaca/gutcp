@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+	<!-- @file   : GUTCP_Orbitsphere.html			-->
+	<!-- @author : J Miguel Vaca 					-->
+	<!-- @remark : This webpage uses WebGL to visualise Dr Randell Mill's Orbitsphere as defined in Chapter 5 -->
+	<!--         : of his book The Grand Unified Theory of Classical Physics.  -->
 	<head>
 		<title>GUTCP Orbitsphere CVFS Demo</title>
 		<meta charset="utf-8">
@@ -33,11 +37,10 @@
 		</style>
 	</head>
 	<body>
-
         <div id="info">
             <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 1.5 - Generation of the Orbitsphere CVFs</a>
             <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Simulation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
-            <br> Select points per great circle: <span id="options"></span><br/>
+            <!-- <br> Select points per great circle: <span id="options"></span><br/> -->
         </div>
 
 		<script src="https://threejs.org/build/three.js"></script>
@@ -52,17 +55,17 @@
 			// For PI declaration:
 			#include <common>
 
-			//uniform float cameraConstant;
 			uniform float wavesPerRing;
             uniform float waveSpeed;
 			uniform float uTime;
+			
+			uniform float scale;
 			uniform bool  animate;
 			uniform vec4  color;
 
 			varying vec4 vColor;
 
 			void main() {
-			
 				if(animate) {
                     float bright = mod(waveSpeed*uTime+uv.y, 1.0/wavesPerRing) * wavesPerRing;
 					//float bright = (cos((2.0*3.1416*waveSpeed*uTime*wavesPerRing)+(2.0*3.1416*uv.y*wavesPerRing)) + 1.0) * 0.5;
@@ -71,39 +74,43 @@
                     vColor = color;
 				}
 				
-				vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
+				vec4 mvPosition = modelViewMatrix * vec4( position.xyz*scale, 1.0 );
 				gl_PointSize = 3.0;
 				gl_Position = projectionMatrix * mvPosition;
 			}
-
 		</script>
 
         <!-- Heatmap vertex shader - Use this to update the position due to camera projection -->
-		<script id="heatmapVertexShader" type="x-shader/x-vertex">
+		<script id="densitymapVertexShader" type="x-shader/x-vertex">
 
 			// For PI declaration:
 			#include <common>
 
-			//uniform float cameraConstant;
-			uniform vec4  color;
+			uniform vec4  hiColor;
+			uniform vec4  loColor;
 			uniform float maxHistogramValue;
-
+			uniform float contrast;
+			uniform float shape;
 			varying vec4 vColor;
-
+			
 			void main() {
 				// UV.x contains histogram value
 				// UV.y contains ???
 				if(maxHistogramValue > 0.0) {
-					vColor = (1.0 / maxHistogramValue) * uv.x * color;
+					vColor = pow((uv.x / maxHistogramValue), contrast) * (hiColor-loColor) + loColor;
 				} else {
-					vColor = 0.0;
+					vColor = hiColor;
 				}
 				
-				vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
+				vec4 mvPosition;
+				if(maxHistogramValue > 0.0) {
+					mvPosition = modelViewMatrix * vec4( position.xyz*pow((uv.x / maxHistogramValue),shape), 1.0 );
+				} else {
+					mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 );
+				}
 				gl_PointSize = 2.0;
 				gl_Position = projectionMatrix * mvPosition;
 			}
-
 		</script>
 
         <!-- Grid vertex shader - Use this to update the position due to camera projection -->
@@ -146,41 +153,16 @@
 			var isIE = /Trident/i.test( navigator.userAgent );
 			var isEdge = /Edge/i.test( navigator.userAgent );
 
-			var hash = document.location.hash.substr( 1 );
-            var WIDTH = 0;
-
-            // Set 'WIDTH' to option hash if set, else set it to 60 (vertices per ring) and (rings per rotation)
-            if ( hash ) {
-                hash = parseInt( hash, 0 );
-                WIDTH = hash;
-            } else {
-                WIDTH = 60;
-            }
-
 			var container, stats;
 			var camera, scene, renderer, geometry, controls;
 			var clock = new THREE.Clock();
 			var tick = 0;
-			
-			var VERTICES = WIDTH * WIDTH;
 			
 			function change( n ) {
 				location.hash = n;
 				location.reload();
 				return false;
 			}
-
-            var options = '';
-            for ( var i = 1; i <= 6; i++ ) {
-                var j = i * 60;
-                if(WIDTH != j) {
-                	options += '<a href="#" onclick="return change(' + j + ')">' + j + '</a> ';
-                } else {
-                	options += j + ' ';
-                }
-            }
-
-            document.getElementById( 'options' ).innerHTML = options;
 
 			if ( isEdge || isIE ) {
 				document.getElementById( 'warning' ).innerText = 'particle counts greater than 16 may not render with ' + ( isEdge ? 'Edge' : 'IE11' );
@@ -191,6 +173,8 @@
 
             var y103;
             var y109;
+
+            var densitymap;
             
             var blackSphere;
 
@@ -199,161 +183,191 @@
 
             var effectController;
             
-            var heatmapGeometry;
-            var i_n = 0;
-            var i_m = 0;
-            var i_p = 0;
-            
-            var i_N = 0;
-            var i_M = 0;
-            var i_P = 0;
-
             // Geometry object based on GUTCP equations, selected using "mode" variable:
             //     BECVF (Eq 1.84)  : mode == 1 
             //     OCVF  (Eq 1.95)  : mode == 2 
             // Y00 BECVF (Eq 1.103) : mode == 3
             // Y00 OCVF  (Eq 1.109) : mode == 4
             class CVF {
-			
+				// Return an individual CVF vertex:
+				// mode    = 1:BECVF, 2:OCVF
+				// radius  = CVF radius (typically 100.0)
+				// i_theta = iterator for theta
+				// THETA   = number of current rings
+				// i_phi   = iterator for PHI
+				// PHI     = number of point in the current loop
+				static getCvfVertex(mode, radius, i_theta, THETA, i_phi, PHI) {
+					var theta = 2.0 * Math.PI * i_theta / THETA;
+		
+					// Setup the 3x3 rotation matrix from GUTCP Eq(1.84)
+					var cvfRot = [];
+					if(mode == 1) {
+						cvfRot[0+0] = ( 0.5 + 0.5*Math.cos(theta));
+						cvfRot[0+1] = (-0.5 + 0.5*Math.cos(theta));
+						cvfRot[0+2] = (-0.70711*Math.sin(theta));
+						cvfRot[3+0] = (-0.5 + 0.5*Math.cos(theta));
+						cvfRot[3+1] = ( 0.5 + 0.5*Math.cos(theta)); 
+						cvfRot[3+2] = (-0.70711*Math.sin(theta));
+						cvfRot[6+0] = ( 0.70711*Math.sin(theta));
+						cvfRot[6+1] = ( 0.70711*Math.sin(theta));
+						cvfRot[6+2] = (Math.cos(theta));
+					} else {
+						// Setup the 3x3 rotation matrix from GUTCP Eq(1.95)
+						cvfRot[0+0] = ( 0.25 * (1.0 + 3.0*Math.cos(theta)));
+						cvfRot[0+1] = ( 0.25 * (-1.0 + Math.cos(theta) + 2.0 * 1.414 * Math.sin(theta)));
+						cvfRot[0+2] = ( 0.25 * (-1.414 + 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
+						cvfRot[3+0] = ( 0.25 * (-1.0 + Math.cos(theta) - 2.0 * 1.414 * Math.sin(theta)));
+						cvfRot[3+1] = ( 0.25 * (1.0 + 3.0*Math.cos(theta))); 
+						cvfRot[3+2] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
+						cvfRot[6+0] = ( 0.5 * (((-1 + Math.cos(theta))/1.414) + Math.sin(theta)));
+						cvfRot[6+1] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) + 2.0 * Math.sin(theta)));
+						cvfRot[6+2] = (Math.cos(theta*0.5) * Math.cos(theta*0.5));
+					}
+					
+					var phi;
+					var cvf = [];
+					if(mode == 1) {
+						phi = 2.0 * Math.PI * i_phi / PHI;
+						cvf = [0.0, (radius * Math.cos(phi)), (-radius * Math.sin(phi))];
+					} else {
+						phi = 2.0 * Math.PI * i_phi / PHI + 0.5 * Math.PI;  // Half-PI phase addition is to correct a kink visual artefact
+						cvf = [(0.707*effectController.radius * Math.cos(phi)), 
+							   (0.707*effectController.radius * Math.cos(phi)), 
+							   (-effectController.radius * Math.sin(phi))];
+					}
+				
+					var vertex = [];
+					vertex[ 0 ] = cvf[0]*cvfRot[0+0] + cvf[1]*cvfRot[0+1] + cvf[2]*cvfRot[0+2];
+					vertex[ 1 ] = cvf[0]*cvfRot[3+0] + cvf[1]*cvfRot[3+1] + cvf[2]*cvfRot[3+2]; 
+					vertex[ 2 ] = cvf[0]*cvfRot[6+0] + cvf[1]*cvfRot[6+1] + cvf[2]*cvfRot[6+2];
+				
+					return vertex;
+				}
+            
+				// Return an individual CVF vertex:
+				// mode    = 1:BECVF, 2:OCVF
+				// radius  = CVF radius (typically 100.0)
+				// i_n     = iterator for N
+				// N       = 
+				// i_m     = iterator for M
+				// M       = 
+				// i_phi   = iterator for PHI
+				// PHI     = number of point in the current loop
+            	static getY00Vertex(mode, radius, i_n, N, i_m, M, i_phi, PHI) {
+
+					var m2piONm = 2.0 * Math.PI * i_m / M;
+					var m_matrix = [];
+
+					// The m_matrix is identical for both Y00 geometry types:
+					m_matrix[0+0] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
+					m_matrix[0+1] = (0.25 * (-1.0 + Math.cos(m2piONm) + 2.828 * Math.sin(m2piONm)));
+					m_matrix[0+2] = (0.25 * (-1.414 + 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
+					m_matrix[3+0] = (0.25 * (-1.0 + Math.cos(m2piONm) - 2.828 * Math.sin(m2piONm)));
+					m_matrix[3+1] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
+					m_matrix[3+2] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
+					m_matrix[6+0] = (0.5 * (0.707 * (-1.0 + Math.cos(m2piONm)) + Math.sin(m2piONm)));
+					m_matrix[6+1] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) + 2.0 * Math.sin(m2piONm)));
+					m_matrix[6+2] = (Math.cos(0.5 * m2piONm) * Math.cos(0.5 * m2piONm));
+					
+					var n2piONn = 2.0 * Math.PI * i_n / N;
+					var n_matrix = [];
+					// n_matrix is different, dependent on Y00 geometry type:
+					if(mode == 1) {
+							n_matrix[0+0] = (0.5 + 0.5 * Math.cos(n2piONn));
+							n_matrix[0+1] = (-0.5 + 0.5 * Math.cos(n2piONn));
+							n_matrix[0+2] = (-Math.sin(n2piONn) * 0.707);
+							n_matrix[3+0] = (-0.5 + 0.5 * Math.cos(n2piONn));
+							n_matrix[3+1] = (0.5 + 0.5 * Math.cos(n2piONn));
+							n_matrix[3+2] = (-Math.sin(n2piONn) * 0.707);
+							n_matrix[6+0] = (Math.sin(n2piONn) * 0.707);
+							n_matrix[6+1] = (Math.sin(n2piONn) * 0.707);
+							n_matrix[6+2] = (Math.cos(n2piONn));
+					} else {
+							n_matrix[0+0] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+							n_matrix[0+1] = (0.707 * Math.cos(n2piONn) + 0.707 * Math.sin(n2piONn));
+							n_matrix[0+2] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+							n_matrix[3+0] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+							n_matrix[3+1] = (0.707 * Math.cos(n2piONn) - 0.707 * Math.sin(n2piONn));
+							n_matrix[3+2] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+							n_matrix[6+0] = (-0.707);
+							n_matrix[6+1] = (0.0);
+							n_matrix[6+2] = (0.707);
+					}
+
+					var phi = 2.0 * Math.PI * i_phi / PHI;
+					var becvf ;
+					if(mode == 1) {
+						becvf = [(0.0),
+								 (effectController.radius * Math.cos(phi)),
+								 (-effectController.radius * Math.sin(phi))];
+					} else {
+						becvf = [(effectController.radius * Math.cos(phi)),
+								 (effectController.radius * Math.sin(phi)),
+								 (0.0)];
+					}
+					var tx = n_matrix[0+0] * becvf[0] + n_matrix[0+1] * becvf[1] + n_matrix[0+2] * becvf[2];
+					var ty = n_matrix[3+0] * becvf[0] + n_matrix[3+1] * becvf[1] + n_matrix[3+2] * becvf[2];
+					var tz = n_matrix[6+0] * becvf[0] + n_matrix[6+1] * becvf[1] + n_matrix[6+2] * becvf[2];
+
+					var vertex = [];
+					vertex[0] = m_matrix[0+0] * tx + m_matrix[0+1] * ty + m_matrix[0+2] * tz;
+					vertex[1] = m_matrix[3+0] * tx + m_matrix[3+1] * ty + m_matrix[3+2] * tz;
+					vertex[2] = m_matrix[6+0] * tx + m_matrix[6+1] * ty + m_matrix[6+2] * tz;
+					return vertex;
+            	}
+            	
 				// Returns a two-element array containing geometry and uv for GUTCP Current-Vector Fields.
 				// mode 1 - returns a BECVF geometry
 				// mode 2 - returns a OCVF geometry
-				static createCvfGeometry (mode, radius, THETA, PSI) {
-						// Storage for all the locations for the geometry:
-						var positions = new Float32Array( THETA * PSI * 3 );
-						var uvs = new Float32Array( THETA * PSI * 2 );
+				static createCvfGeometry (mode, radius, THETA, PHI) {
+					// Storage for all the locations for the geometry:
+					var positions = new Float32Array( THETA * PHI * 3 );
+					var uvs = new Float32Array( THETA * PHI * 2 );
+				
+					// Local loop variables:
+					var p = 0;
+					var vtx = [];
+					for ( var i = 0; i < THETA; i++ ) {
+						for ( var j = 0; j < PHI; j++ ) {
+							vtx = CVF.getCvfVertex(mode, radius, i, THETA, j, PHI);
+							positions[ p++ ] = vtx[0];
+							positions[ p++ ] = vtx[1];
+							positions[ p++ ] = vtx[2];
+						}
+					}
+
+					p = 0;
+					// Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
+					for ( var j = 0; j < THETA; j++ ) {
+						for ( var i = 0; i < PHI; i++ ) {
+							uvs[ p++ ] = i / ( PHI - 1 );
+							uvs[ p++ ] = j / ( THETA - 1 );
+						}
+					}
 					
-						// Local loop variables:
-						var p = 0;
-						var theta = 0.0;
-						var psi = 0.0;
-						var cvfRot = [];
-
-						// Populate the BECVF vertices in positions:
-						for ( var i = 0; i < THETA; i++ ) {
-							theta = 2.0 * Math.PI * i / THETA;
-						
-							// Setup the 3x3 rotation matrix from GUTCP Eq(1.84)
-							if(mode == 1) {
-								cvfRot[0+0] = ( 0.5 + 0.5*Math.cos(theta));
-								cvfRot[0+1] = (-0.5 + 0.5*Math.cos(theta));
-								cvfRot[0+2] = (-0.70711*Math.sin(theta));
-								cvfRot[3+0] = (-0.5 + 0.5*Math.cos(theta));
-								cvfRot[3+1] = ( 0.5 + 0.5*Math.cos(theta)); 
-								cvfRot[3+2] = (-0.70711*Math.sin(theta));
-								cvfRot[6+0] = ( 0.70711*Math.sin(theta));
-								cvfRot[6+1] = ( 0.70711*Math.sin(theta));
-								cvfRot[6+2] = (Math.cos(theta));
-							} else {
-								cvfRot[0+0] = ( 0.25 * (1.0 + 3.0*Math.cos(theta)));
-								cvfRot[0+1] = ( 0.25 * (-1.0 + Math.cos(theta) + 2.0 * 1.414 * Math.sin(theta)));
-								cvfRot[0+2] = ( 0.25 * (-1.414 + 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
-								cvfRot[3+0] = ( 0.25 * (-1.0 + Math.cos(theta) - 2.0 * 1.414 * Math.sin(theta)));
-								cvfRot[3+1] = ( 0.25 * (1.0 + 3.0*Math.cos(theta))); 
-								cvfRot[3+2] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
-								cvfRot[6+0] = ( 0.5 * (((-1 + Math.cos(theta))/1.414) + Math.sin(theta)));
-								cvfRot[6+1] = ( 0.25 * (1.414 - 1.414 * Math.cos(theta) + 2.0 * Math.sin(theta)));
-								cvfRot[6+2] = (Math.cos(theta*0.5) * Math.cos(theta*0.5));
-							}
-						
-							var cvf;
-							for ( var j = 0; j < PSI; j++ ) {
-								if(mode == 1) {
-									psi = 2.0 * Math.PI * j / PSI;
-									cvf = [0.0, (radius * Math.cos(psi)), (-radius * Math.sin(psi))];
-								} else {
-									psi = 2.0 * Math.PI * j / WIDTH + 0.5 * Math.PI;  // Half-PI phase addition is to correct a kink visual artefact
-									cvf = [(0.707*effectController.radius * Math.cos(psi)), 
-										   (0.707*effectController.radius * Math.cos(psi)), 
-										   (-effectController.radius * Math.sin(psi))];
-								}
-								positions[ p++ ] = cvf[0]*cvfRot[0+0] + cvf[1]*cvfRot[0+1] + cvf[2]*cvfRot[0+2];
-								positions[ p++ ] = cvf[0]*cvfRot[3+0] + cvf[1]*cvfRot[3+1] + cvf[2]*cvfRot[3+2]; 
-								positions[ p++ ] = cvf[0]*cvfRot[6+0] + cvf[1]*cvfRot[6+1] + cvf[2]*cvfRot[6+2];
-							}
-						}
-
-						p = 0;
-						// Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
-						for ( var j = 0; j < THETA; j++ ) {
-							for ( var i = 0; i < PSI; i++ ) {
-								uvs[ p++ ] = i / ( PSI - 1 );
-								uvs[ p++ ] = j / ( THETA - 1 );
-							}
-						}
 					var retval = [];
 					retval[0] = positions;
 					retval[1] = uvs;
 					return retval;
 				}
 			
-				static createY00Geometry (mode, radius, N, M, PSI) {
+				// Static function that returns a two-element array containing geometry and uv for GUTCP Current-Vector Fields.
+				// Y00 BECVF (Eq 1.103) : mode == 1
+				// Y00 OCVF  (Eq 1.109) : mode == 2
+				static createY00Geometry (mode, radius, N, M, PHI) {
 					// Storage for all the locations for the BECVF:
-					var positions = new Float32Array( (M * N * PSI) * 3 );
-					var uvs = new Float32Array( (M * N * PSI) * 2 );
+					var positions = new Float32Array( (M * N * PHI) * 3 );
+					var uvs = new Float32Array( (M * N * PHI) * 2 );
+					
 					var p = 0;
-					var psi = 0.0;
-
-					for (var m = 1; m <= M; m++) {
-						var m2piONm = 2.0 * Math.PI * m / M;
-						var m_matrix = [];
-
-						// The m_matrix is identical for both Y00 geometry types:
-						m_matrix[0+0] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
-						m_matrix[0+1] = (0.25 * (-1.0 + Math.cos(m2piONm) + 2.828 * Math.sin(m2piONm)));
-						m_matrix[0+2] = (0.25 * (-1.414 + 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
-						m_matrix[3+0] = (0.25 * (-1.0 + Math.cos(m2piONm) - 2.828 * Math.sin(m2piONm)));
-						m_matrix[3+1] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
-						m_matrix[3+2] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
-						m_matrix[6+0] = (0.5 * (0.707 * (-1.0 + Math.cos(m2piONm)) + Math.sin(m2piONm)));
-						m_matrix[6+1] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) + 2.0 * Math.sin(m2piONm)));
-						m_matrix[6+2] = (Math.cos(0.5 * m2piONm) * Math.cos(0.5 * m2piONm));
-						
-						for (var n = 1; n <= N; n++) {
-							var n2piONn = 2.0 * Math.PI * n / N;
-							var n_matrix = [];
-							// n_matrix is different, dependent on Y00 geometry type:
-							if(mode == 1) {
-									n_matrix[0+0] = (0.5 + 0.5 * Math.cos(n2piONn));
-									n_matrix[0+1] = (-0.5 + 0.5 * Math.cos(n2piONn));
-									n_matrix[0+2] = (-Math.sin(n2piONn) * 0.707);
-									n_matrix[3+0] = (-0.5 + 0.5 * Math.cos(n2piONn));
-									n_matrix[3+1] = (0.5 + 0.5 * Math.cos(n2piONn));
-									n_matrix[3+2] = (-Math.sin(n2piONn) * 0.707);
-									n_matrix[6+0] = (Math.sin(n2piONn) * 0.707);
-									n_matrix[6+1] = (Math.sin(n2piONn) * 0.707);
-									n_matrix[6+2] = (Math.cos(n2piONn));
-							} else {
-									n_matrix[0+0] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
-									n_matrix[0+1] = (0.707 * Math.cos(n2piONn) + 0.707 * Math.sin(n2piONn));
-									n_matrix[0+2] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
-									n_matrix[3+0] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
-									n_matrix[3+1] = (0.707 * Math.cos(n2piONn) - 0.707 * Math.sin(n2piONn));
-									n_matrix[3+2] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
-									n_matrix[6+0] = (-0.707);
-									n_matrix[6+1] = (0.0);
-									n_matrix[6+2] = (0.707);
-							}
-
-							for (var i = 0; i < PSI; i++) {
-								psi = 2.0 * Math.PI * i / PSI;
-								var becvf ;
-								if(mode == 1) {
-									becvf = [(0.0),
-											 (effectController.radius * Math.cos(psi)),
-											 (-effectController.radius * Math.sin(psi))];
-								} else {
-									becvf = [(effectController.radius * Math.cos(psi)),
-											 (effectController.radius * Math.sin(psi)),
-											 (0.0)];
-								}
-								var tx = n_matrix[0+0] * becvf[0] + n_matrix[0+1] * becvf[1] + n_matrix[0+2] * becvf[2];
-								var ty = n_matrix[3+0] * becvf[0] + n_matrix[3+1] * becvf[1] + n_matrix[3+2] * becvf[2];
-								var tz = n_matrix[6+0] * becvf[0] + n_matrix[6+1] * becvf[1] + n_matrix[6+2] * becvf[2];
-
-								positions[p++] = m_matrix[0+0] * tx + m_matrix[0+1] * ty + m_matrix[0+2] * tz;
-								positions[p++] = m_matrix[3+0] * tx + m_matrix[3+1] * ty + m_matrix[3+2] * tz;
-								positions[p++] = m_matrix[6+0] * tx + m_matrix[6+1] * ty + m_matrix[6+2] * tz;
+					var vtx = [];
+					for (var i_m = 1; i_m <= M; i_m++) {
+						for (var i_n = 1; i_n <= N; i_n++) {
+							for (var i_phi = 0; i_phi < PHI; i_phi++) {
+								vtx = CVF.getY00Vertex(mode, radius, i_n, N, i_m, M, i_phi, PHI);
+								positions[p++] = vtx[0];
+								positions[p++] = vtx[1];
+								positions[p++] = vtx[2];
 							}
 						}
 					}
@@ -362,9 +376,9 @@
 					// Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
 					for ( var j = 1; j <= M; j++ ) {
 						for ( var i = 1; i <= N; i++ ) {
-							for(var k = 0; k < PSI; ++k) {
-								uvs[ p++ ] = k / ( PSI );
-								uvs[ p++ ] = k / ( PSI );
+							for(var k = 0; k < PHI; ++k) {
+								uvs[ p++ ] = k / ( PHI );
+								uvs[ p++ ] = k / ( PHI );
 							}
 						}
 					}
@@ -376,14 +390,50 @@
 				}
 				
 				// Construct a BECVF object with a radius of "radius", a rotation resolution of "THETA", and a 
-				// great-circle current-loop density of "PSI":
-				constructor(mode, radius, THETA, PSI) {
-
+				// great-circle current-loop density of "PHI":
+				constructor(mode, radius, THETA, PHI) {
+					this.scene = 0;
+					// Variable handles for dat.gui to manipulate:
+					this.color = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
+					this.animate = true;
+					this.visibility = 'lines';
+					this.scale = 1.0;
+					
+					// Create the shader uniforms:
+					this.cvfUniforms = {
+						//cameraConstant: { value: getCameraConstant( camera ) },
+						uTime:     { value: 0.0 },
+						waveSpeed: { value: 0.25 },
+						wavesPerRing: { value: 2.0 },
+						scale:     { value: this.scale },
+						animate:   { value: this.animate },
+						color:     { value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) }
+					};
+					
+					this.resolution = PHI;
+					this.loadNewGeometry(mode, radius, THETA, PHI);
+				}
+				
+				// Insert the geometries into the scenegraph's sceneObject:
+				insertScene(sceneObject) {
+					sceneObject.add(this.cvfPoints);
+					sceneObject.add(this.cvfLines);
+					this.scene = sceneObject;
+				}
+				
+				loadNewGeometry(mode, radius, THETA, PHI) {
+					// Remove the geometries from the scene:
+					if(this.scene) {
+						this.scene.remove(this.cvfPoints);
+						this.scene.remove(this.cvfLines);
+					}
+					
+					// Re-create the geometries:
 					var cvfGeo;
 					if((mode == 1) || (mode == 2)) {
-						cvfGeo = CVF.createCvfGeometry (mode, radius, THETA, PSI);
+						cvfGeo = CVF.createCvfGeometry (mode, radius, THETA, PHI);
 					} else { // assume mode == 3 or 4 if we get here
-						cvfGeo = CVF.createY00Geometry (mode-2, radius, THETA/5, THETA/5, PSI);
+						cvfGeo = CVF.createY00Geometry (mode-2, radius, THETA/5, THETA/5, PHI);
 					} 
 					
 					// The BECVF geometry, based on BufferGeometry for efficiency:
@@ -395,21 +445,6 @@
 					this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.positions, 3 ) );
 					this.geometry.addAttribute( 'uv', new THREE.BufferAttribute( this.uvs, 2 ) );
 
-					// Variable handles for dat.gui to manipulate:
-					this.color = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
-					this.animate = true;
-					this.visibility = 'lines';
-					
-					// Create the shader uniforms:
-					this.cvfUniforms = {
-						//cameraConstant: { value: getCameraConstant( camera ) },
-						uTime: {value: 0.0},
-						waveSpeed: { value: 0.25 },
-						wavesPerRing: { value: 2.0 },
-						animate: { value: this.animate },
-						color: { value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) }
-					};
-					
 					// Create and initialise the ShaderMaterial:
 					this.material = new THREE.ShaderMaterial( {
 						uniforms:       this.cvfUniforms,
@@ -422,18 +457,20 @@
 					this.cvfPoints = new THREE.Points( this.geometry, this.material );
 					this.cvfPoints.matrixAutoUpdate = false;
 					this.cvfPoints.updateMatrix();
-					this.cvfPoints.visible = false;
+					//this.cvfPoints.visible = false;
 
 					// Create the Lines geometry and load the into the scene:
 					this.cvfLines = new THREE.LineLoop( this.geometry, this.material );
 					this.cvfLines.matrixAutoUpdate = false;
 					this.cvfLines.updateMatrix();
-				}
-				
-				// Insert the geometries into the scenegraph's sceneObject:
-				insertScene(sceneObject) {
-					sceneObject.add(this.cvfPoints);
-					sceneObject.add(this.cvfLines);
+					
+					this.setVisibility(this.visibility);
+					
+					// Add the new geometries:
+					if(this.scene) {
+						this.scene.add(this.cvfPoints);
+						this.scene.add(this.cvfLines);
+					}
 				}
 				
 				// Set the visible geometry. No point ever displaying both, as they use the SAME vertices:
@@ -472,6 +509,188 @@
 				}
 			}
 
+			/*
+			// Initialise the lookup table indices:
+			var fast_index = [];
+			for(var i_x=0; i_x < 10; i_x++) {
+				fast_index[i_x] = [];
+				for(var i_y=0; i_y < 10; i_y++) {
+					fast_index[i_x][i_y] = [];
+					for(var i_z=0; i_z < 10; i_z++) {
+						fast_index[i_x][i_y][i_z] = [];
+					}
+				}
+			}
+		
+			// Populate the lookup table with the vertex and its index:
+			for(var i = 0; i < densitymapVertices.count; i++) {
+				var hx = Math.trunc(densitymapVertices.getX(i)/20.0) + 5;
+				var hy = Math.trunc(densitymapVertices.getY(i)/20.0) + 5;
+				var hz = Math.trunc(densitymapVertices.getZ(i)/20.0) + 5;
+				//console.log(densitymapVertices.getX(i),densitymapVertices.getY(i),densitymapVertices.getZ(i));
+				//console.log(hx, hy, hz);
+				fast_index[hx][hy][hz].push(i);
+			}
+			*/
+			/*
+				var hx = Math.trunc(geo[0][i]/20.0) + 5;
+				var hy = Math.trunc(geo[0][i+1]/20.0) + 5;
+				var hz = Math.trunc(geo[0][i+2]/20.0) + 5;
+			
+				// Now find all the vertices in the bin, and increment its histogram:
+				for(var j=0; j<fast_index[hx][hy][hz].length; ++j) {
+					var num = densitymapHistogram.getX(fast_index[hx][hy][hz][j]);
+					//console.log(hx, hy, hz, num);
+					densitymapHistogram.setX(fast_index[hx][hy][hz][j], num+1.0);
+				
+					// Find highest value in array:
+					if(num+1.0 > highestValueInArray) {
+						highestValueInArray = num+1.0;
+						console.log(highestValueInArray);
+					}
+				}
+			*/
+			
+			class DensityMap {
+				constructor() {
+					// Heatmap specific stuff:
+					this.densitymapGeometry  = new THREE.IcosahedronBufferGeometry( 98, 5 );
+					this.densitymapVertices  = this.densitymapGeometry.getAttribute('position');
+					this.densitymapHistogram = this.densitymapGeometry.getAttribute('uv');
+					//var densitymapColor = new Float32Array( densitymapVertices.count * 3 );
+				
+					// Initialise to ZERO the UV values:
+					for(var i = 0; i < this.densitymapHistogram.count; i++) {
+						this.densitymapHistogram.setX(i, 0.0);
+						this.densitymapHistogram.setY(i, 0.0);
+					}
+
+					this.hiColor = [0, 255, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
+					this.loColor = [0, 0, 255, 1.0]; 	// Let's default to RED in [R, G, B, A]
+					this.contrast = 0.5
+					this.shape = 1.0
+					this.densitymapUniforms = {
+						cameraConstant: 	{ value: getCameraConstant( camera ) },
+						hiColor: 			{ value: new THREE.Vector4(this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]) },
+						loColor: 			{ value: new THREE.Vector4(this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]) },
+						maxHistogramValue: 	{ value: 0.0 },
+						contrast:			{ value: this.contrast },
+						shape: 				{ value: this.shape }
+					};
+
+					// ShaderMaterial
+					this.wireframe = true;
+					this.material = new THREE.ShaderMaterial( {
+															uniforms:       this.densitymapUniforms,
+															vertexShader:   document.getElementById( 'densitymapVertexShader' ).textContent,
+															fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent,
+															wireframe: 		this.wireframe
+															} );
+					this.material.extensions.drawBuffers = true;
+					this.densitymapMesh = new THREE.Mesh( this.densitymapGeometry, this.material );
+					this.visibility = true;
+					this.densitymapMesh.visible = this.visibility;
+					
+					this.N = 12;
+					this.M = 12;
+					this.PHI = 60;
+					this.hasWork = false;
+				}
+				
+				// Insert the geometries into the scenegraph's sceneObject:
+				insertScene(sceneObject) {
+					sceneObject.add(this.densitymapMesh);
+				}
+				
+				// Set the visible geometry. No point ever displaying both, as they use the SAME vertices:
+				setVisibility(value) {
+					this.visibility = value;
+					this.densitymapMesh.visible = value;
+				}
+				
+				// Select whether to animate or not:
+				setAnimate(value) {
+					this.densitymapUniforms.animate.value = (value) ? true : false;
+				}
+				
+				// Little hack for dat.gui. Update the color by passing 4-element array in form [255, 128, 0, 1.0]:
+				setHiColor(value) {
+					this.hiColor = value;
+					this.densitymapUniforms.hiColor.value = [this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]];
+				}
+				
+				setLoColor(value) {
+					this.loColor = value;
+					this.densitymapUniforms.loColor.value = [this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]];
+				}
+				
+				reset() {
+					// Clear the geometry UV:
+					for(var i = 0; i < this.densitymapHistogram.count; i++) {
+						this.densitymapHistogram.setX(i, 0.0);
+						this.densitymapHistogram.setY(i, 0.0);
+					}
+					this.densitymapUniforms.maxHistogramValue.value = 0.0;
+					this.densitymapHistogram.needsUpdate = true;
+					this.i_n = 0;
+					this.i_m = 0;
+					this.i_phi = 0;
+					this.hasWork = true;
+				}
+				
+				pause() {
+					this.hasWork = !this.hasWork;
+				}
+				
+				process(value) {
+					// 
+					if(this.hasWork) {
+						var count = 0;
+						OUT:
+						for(; this.i_phi < this.PHI; ++this.i_phi) {
+							for(; this.i_m < this.M; ++this.i_m) {
+								for(; this.i_n < this.N; ++this.i_n) {
+									var geo = CVF.getY00Vertex (1, 98.0, this.i_n, this.N, this.i_m, this.M, this.i_phi, this.PHI);
+									
+									var hx = geo[0];
+									var hy = geo[1];
+									var hz = geo[2];
+				
+									for(var j = 0; j < this.densitymapVertices.count; j++) {
+										var range = Math.pow(hx - this.densitymapVertices.getX(j), 2)
+												  + Math.pow(hy - this.densitymapVertices.getY(j), 2)
+												  + Math.pow(hz - this.densitymapVertices.getZ(j), 2);
+										
+										if(range < 225.0) {
+											var num = this.densitymapHistogram.getX(j);
+											this.densitymapHistogram.setX(j, num+1.0);
+					
+											// Find highest value in array:
+											if((num+1.0) > this.densitymapUniforms.maxHistogramValue.value) {
+												this.densitymapUniforms.maxHistogramValue.value = num+1.0;
+											}
+										}
+									}
+									if(++count >= value) {
+										this.densitymapHistogram.needsUpdate = true;
+										break OUT;
+									}
+								}
+								// Finished the N-loop, so re-zero the iterator here:
+								this.i_n = 0;
+							} 
+							// Finished the M-loop, so re-zero the iterator here:
+							this.i_m = 0;
+						}
+						if(this.i_phi >= this.PHI) {
+							this.hasWork = false;
+							this.densitymapHistogram.needsUpdate = true;
+							console.log("done");
+						}
+					}
+				}
+			}
+
 			init();
 			animate();
 
@@ -502,9 +721,6 @@
                     gridBrightness: 0.3,
                     alphaGrid:  1.0,
                     enableBlkSphere: false,
-
-					enableY00CurrentDensity: false,
-					colorY00cd: [0, 255, 0, 1.0]
 				};
 
 				//initComputeRenderer();
@@ -517,22 +733,29 @@
                 initGrid();
                 init_BlackSphere();
 				
-				becvf = new CVF(1, 100.0, WIDTH, WIDTH);
+				becvf = new CVF(1, 100.0, 60, 60);
+				becvf.setVisibility('hide');
 				becvf.insertScene(scene);
 				
-				ocvf = new CVF(2, 100.0, WIDTH, WIDTH);
+				ocvf = new CVF(2, 100.0, 60, 60);
 				ocvf.setColor([0, 0, 255, 1.0]);
+				ocvf.setVisibility('hide');
 				ocvf.insertScene(scene);
 				
-				y103 = new CVF(3, 100.0, WIDTH, WIDTH, WIDTH);
+				y103 = new CVF(3, 100.0, 60, 60);
 				y103.setColor([0, 255, 0, 1.0]);
 				y103.setVisibility('hide');
 				y103.insertScene(scene);
 				
-				y109 = new CVF(4, 100.0, WIDTH, WIDTH, WIDTH);
+				y109 = new CVF(4, 100.0, 60, 60);
 				y109.setColor([255, 0, 255, 1.0]);
 				y109.setVisibility('hide');
 				y109.insertScene(scene);
+				
+				densitymap = new DensityMap();
+				densitymap.insertScene(scene);
+				densitymap.setVisibility(true);
+				densitymap.reset();
 				
                 initGUI();
 
@@ -540,99 +763,12 @@
 			}
 			
 			function init_BlackSphere() {
-				// Create and insert a black sphere that can be used to obscure the back-half of the sphere.
+				// Create and insert a black sphere that can be used to obscure the back-half of the geometries.
 				// Make its radius 99, which is less than the 100 radius of the rest of anim.
 				geometry = new THREE.SphereBufferGeometry( 97, 32, 32 );
 				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
 				blackSphere = new THREE.Mesh( geometry, material );
 				scene.add( blackSphere );            
-			}
-			
-			function init_CurrentDensity() {
-				// Heatmap specific stuff:
-				heatmapGeometry = new THREE.IcosahedronBufferGeometry( 98, 5 );
-				// Now find the closest vertex in the sphere to generate a density/heat map:
-				var heatmapVertices = heatmapGeometry.getAttribute('position');
-                //var heatmapColor = new Float32Array( heatmapVertices.count * 3 );
-                var heatmapHistogram = heatmapGeometry.getAttribute('uv');
-                
-                for(var i = 0; i < heatmapHistogram.count; i++) {
-                	heatmapHistogram.x = 0.0;
-                }
-
-                y00_F1_19Uniforms = {
-                    cameraConstant: 	{ value: getCameraConstant( camera ) },
-                    uTime:      		{ value: 0.0 },
-					color: 				{ value: new THREE.Vector4([0.0, 1.0, 0.0, 1.0]) },
-					maxHistogramValue: 	{ value: 0.0 }
-                };
-
-                // ShaderMaterial
-                var material = new THREE.ShaderMaterial( {
-                                                        uniforms:       y00_F1_19Uniforms,
-                                                        vertexShader:   document.getElementById( 'heatmapVertexShader' ).textContent,
-                                                        fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
-                                                        } );
-				material.extensions.drawBuffers = true;
-                //heatmapGeometry.addAttribute( 'color', new THREE.BufferAttribute( heatmapColor, 3 ) );
-
-                //var heatmapMaterial = new THREE.MeshBasicMaterial( {wireframe: false, vertexColors: THREE.VertexColors} );
-				//var heatmapMesh = new THREE.Mesh( heatmapGeometry, heatmapMaterial );
-				var heatmapMesh = new THREE.Mesh( heatmapGeometry, material );
-				scene.add( heatmapMesh );            
-			}
-			
-			function calcHistInPart(chunks) {
-				var count = 0;
-				// N:
-				for(;i_n < i_N; i_n++) {
-					// M:
-					for(;i_m < i_M; i_m++) {
-						// phi
-						for(; i_p < i_phi; i_p++) {
-							if(count <= chunks) {
-								// Do stuff:
-								var x = 0.0;
-								var y = 100.0 * Math.sin(i_p * 0.05);
-								var z = 100.0 * Math.cos(i_p * 0.05);
-								
-								var heatmapHistogram = heatmapGeometry.getAttribute('uv');
-								var highestValueInArray = 0.0;
-								
-								for(var j = 0; j < heatmapHistogram.count; j++) {
-									var range = Math.pow((heatmapVertices.array[j*3+0] - x), 2) +
-												Math.pow((heatmapVertices.array[j*3+1] - y), 2) +
-												Math.pow((heatmapVertices.array[j*3+2] - z), 2);
-									if (range < 144.0) {
-										heatmapHistogram[j].x += 1.0;
-									}
-									// Find highest value in array:
-									if(heatmapHistogram[j].x > highestValueInArray) highestValueInArray = heatmapHistogram[j].x;
-									//heatmapHistogram[j] += 1.0/range;
-								}
-								
-								/*
-								for(var i = 0; i < heatmapHistogram.count; i++) {
-									heatmapColor[i*3+0] = 0.00;  // Red
-									heatmapColor[i*3+1] = Math.pow(heatmapHistogram[i] / highestValueInArray, 2);  // Green
-									heatmapColor[i*3+2] = 0.00;  // Blue
-								}
-								*/
-							} else {
-								// Update the uniforms to flush it to the buffer:
-								y00_F1_19Uniforms.maxHistogramValue.value = highestValueInArray;
-								break;
-							}
-						}
-					}
-				}
-			}
-			
-			function addPointToHeatMap(i_vertex) {
-				var i_x = (heatmapVertices[i_vertex.x] / 20) + 5;
-				var i_y = (heatmapVertices[i_vertex.y] / 20) + 5;
-				var i_z = (heatmapVertices[i_vertex.z] / 20) + 5;
-				//var xIndices[i_x][i_y][i_z].push(i_vertex);
 			}
 			
             function initGrid() {
@@ -705,11 +841,9 @@
                 // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
                 // TODO - fix what we do about the grid uv:
                 for ( var j = 0; j < GRIDPOINTS; j++ ) {
-
                     for ( var i = 0; i < GRIDPOINTS; i++ ) {
-
-                        uvs[ p++ ] = i / ( WIDTH - 1 );
-                        uvs[ p++ ] = j / ( WIDTH - 1 );
+                        uvs[ p++ ] = i / ( GRIDPOINTS - 1 );
+                        uvs[ p++ ] = j / ( GRIDPOINTS - 1 );
                     }
                 }
 
@@ -728,15 +862,14 @@
                                                         linewidth:      2,
                                                         vertexShader:   document.getElementById( 'gridVertexShader' ).textContent,
                                                         fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
-                                                        } );
-                                                        
-                                                        material.extensions.drawBuffers = true;
-                                                        
-                                                        gridGeometry = new THREE.LineSegments( geometry, material );
-                                                        gridGeometry.matrixAutoUpdate = false;
-                                                        gridGeometry.updateMatrix();
-                                                        
-                                                        scene.add( gridGeometry );
+                                                        } );                                                        
+				material.extensions.drawBuffers = true;
+				
+				gridGeometry = new THREE.LineSegments( geometry, material );
+				gridGeometry.matrixAutoUpdate = false;
+				gridGeometry.updateMatrix();
+				
+				scene.add( gridGeometry );
             }
 
 			function onWindowResize() {
@@ -787,37 +920,53 @@
 				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
                 folder2.add( becvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { becvf.setVisibility(value); } );
 				folder2.add( becvf, "animate" ).onChange( function(value) { becvf.setAnimate(value); } );
+				folder2.add( becvf, "resolution", 60, 360, 60).onChange( function(value) { becvf.loadNewGeometry(1, 100.0, value, value); } );
+				folder2.add( becvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { becvf.cvfUniforms.scale.value = value; } );
 				folder2.addColor( becvf, "color").onChange( function(value) { becvf.setColor(value); } );
 
 				// Add a folder for the OCVF parameters:
 				var folder3 = gui.addFolder( 'OCVF - Orbitsphere CVF (Eq 1.95)' );
                 folder3.add( ocvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { ocvf.setVisibility(value); } );
 				folder3.add( ocvf, "animate" ).onChange( function(value) { ocvf.setAnimate(value); } );
+				folder3.add( ocvf, "resolution", 60, 360, 60).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, value, value); } );
+				folder3.add( ocvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { ocvf.cvfUniforms.scale.value = value; } );
 				folder3.addColor( ocvf, "color").onChange( function(value) { ocvf.setColor(value); } );
 
 				// Add a folder for the Y parameters:
-                var folder4 = gui.addFolder( 'Y00 - Current Pattern Func (Eq 1.103)' );
+                var folder4 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
                 folder4.add( y103, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y103.setVisibility(value); } );
                 folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
+				folder4.add( y103, "resolution", 60, 360, 60).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, value); } );
+				folder4.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
 				folder4.addColor( y103, "color").onChange( function(value) { y103.setColor(value); } );
 
 				// Add a folder for the Yy parameters:
-                var folder5 = gui.addFolder( 'Y00 - Current Pattern Func (Eq 1.109)' );
+                var folder5 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.109)' );
                 folder5.add( y109, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y109.setVisibility(value); } );
                 folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
+				folder5.add( y109, "resolution", 60, 360, 60).onChange( function(value) { y109.loadNewGeometry(4, 100.0, value, value); } );
+				folder5.add( y109, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y109.cvfUniforms.scale.value = value; } );
 				folder5.addColor( y109, "color").onChange( function(value) { y109.setColor(value); } );
 
 				// Add a folder for the Yy parameters:
-                //var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19)' );
-                //folder6.add( effectController, "enableY00CurrentDensity" ).onChange( dynamicValuesChanger );
-				//folder6.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
-				//folder6.addColor( effectController, "colorY00cd").onChange( dynamicValuesChanger );
+                var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
+                folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); } );
+                folder6.add( densitymap, "wireframe" ).onChange( function(value) { densitymap.material.wireframe = value; densitymap.material.needsUpdate = true; } );
+				folder6.add( densitymap, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.contrast.value = value; } );
+				folder6.add( densitymap, "shape", 0.0, 3.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.shape.value = value; } );
+				folder6.add( densitymap, "N", 12, 120, 12 ).onChange( function(value)    { densitymap.N = value; densitymap.reset(); } );
+				folder6.add( densitymap, "M", 12, 120, 12 ).onChange( function(value)    { densitymap.M = value; densitymap.reset(); } );
+				folder6.add( densitymap, "PHI", 60, 360, 30 ).onChange( function(value) { densitymap.PHI = value; densitymap.reset(); } );
+				folder6.add( densitymap, "pause");
+				folder6.addColor( densitymap, "hiColor").onChange( function(value) { densitymap.setHiColor(value); } );
+				folder6.addColor( densitymap, "loColor").onChange( function(value) { densitymap.setLoColor(value); } );
 
 				folder1.open();
-				folder2.open();
-				folder3.open();
+				// folder2.open();
+				// folder3.open();
                 // folder4.open();
                 // folder5.open();
+                folder6.open();
 			}
 
 			function getCameraConstant( camera ) {
@@ -825,7 +974,6 @@
 			}
 
 			function animate() {
-
 				// Update the elapsed time to later provide to the shaders:
 				var delta = clock.getDelta();
 				tick += delta;
@@ -836,6 +984,7 @@
 				ocvf.setTime(tick);
 				y103.setTime(tick);
 				y109.setTime(tick);
+				densitymap.process(200);
 
 				// Tell WebGL to call the 'animate()' function for the next screen refresh:
 				requestAnimationFrame( animate );
@@ -844,7 +993,6 @@
 				renderer.render( scene, camera );
 				stats.update();
 			}
-
 		</script>
 	</body>
 </html>
