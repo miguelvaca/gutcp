@@ -567,8 +567,8 @@
 
 					this.hiColor = [0, 255, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
 					this.loColor = [0, 0, 255, 1.0]; 	// Let's default to RED in [R, G, B, A]
-					this.contrast = 0.5
-					this.shape = 1.0
+					this.contrast = 1.0;
+					this.shape = 1.0;
 					this.densitymapUniforms = {
 						cameraConstant: 	{ value: getCameraConstant( camera ) },
 						hiColor: 			{ value: new THREE.Vector4(this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]) },
@@ -870,7 +870,7 @@
 				gridGeometry.updateMatrix();
 				
 				scene.add( gridGeometry );
-            }
+			}
 
 			function onWindowResize() {
 
@@ -884,23 +884,23 @@
 
 			function dynamicValuesChanger() {
 
-                gridUniforms.gridBrightness.value = effectController.gridBrightness;
-                if(effectController.gridBrightness >= 0.05) {
-                	gridGeometry.visible = true;
+				gridUniforms.gridBrightness.value = effectController.gridBrightness;
+				if(effectController.gridBrightness >= 0.05) {
+					gridGeometry.visible = true;
 				} else {
-                	gridGeometry.visible = false;
+					gridGeometry.visible = false;
 				}
-                gridUniforms.alphaGrid.value = effectController.alphaGrid;
-                blackSphere.visible = effectController.enableBlkSphere;
+				gridUniforms.alphaGrid.value = effectController.alphaGrid;
+				blackSphere.visible = effectController.enableBlkSphere;
 
-                becvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+				becvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				becvf.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
-                ocvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+				ocvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				ocvf.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
 				
-                y103.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+				y103.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				y103.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
-                y109.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+				y109.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				y109.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
 			}
 
@@ -910,15 +910,15 @@
 
 				// Add a folder to hold all the common parameters:
 				var folder1 = gui.addFolder( 'Common parameters' );
-                folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
+				folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 				// folder1.add( effectController, "alphaGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-                folder1.add( effectController, "enableBlkSphere" ).onChange( dynamicValuesChanger );
+				folder1.add( effectController, "enableBlkSphere" ).onChange( dynamicValuesChanger );
 
 				// Add a folder for the BECVF parameters:
 				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
-                folder2.add( becvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { becvf.setVisibility(value); } );
+				folder2.add( becvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { becvf.setVisibility(value); } );
 				folder2.add( becvf, "animate" ).onChange( function(value) { becvf.setAnimate(value); } );
 				folder2.add( becvf, "resolution", 60, 360, 60).onChange( function(value) { becvf.loadNewGeometry(1, 100.0, value, value); } );
 				folder2.add( becvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { becvf.cvfUniforms.scale.value = value; } );
@@ -926,32 +926,32 @@
 
 				// Add a folder for the OCVF parameters:
 				var folder3 = gui.addFolder( 'OCVF - Orbitsphere CVF (Eq 1.95)' );
-                folder3.add( ocvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { ocvf.setVisibility(value); } );
+				folder3.add( ocvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { ocvf.setVisibility(value); } );
 				folder3.add( ocvf, "animate" ).onChange( function(value) { ocvf.setAnimate(value); } );
 				folder3.add( ocvf, "resolution", 60, 360, 60).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, value, value); } );
 				folder3.add( ocvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { ocvf.cvfUniforms.scale.value = value; } );
 				folder3.addColor( ocvf, "color").onChange( function(value) { ocvf.setColor(value); } );
 
 				// Add a folder for the Y parameters:
-                var folder4 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
-                folder4.add( y103, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y103.setVisibility(value); } );
-                folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
+				var folder4 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
+				folder4.add( y103, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y103.setVisibility(value); } );
+				folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
 				folder4.add( y103, "resolution", 60, 360, 60).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, value); } );
 				folder4.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
 				folder4.addColor( y103, "color").onChange( function(value) { y103.setColor(value); } );
 
 				// Add a folder for the Yy parameters:
-                var folder5 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.109)' );
-                folder5.add( y109, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y109.setVisibility(value); } );
-                folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
+				var folder5 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.109)' );
+				folder5.add( y109, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y109.setVisibility(value); } );
+				folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
 				folder5.add( y109, "resolution", 60, 360, 60).onChange( function(value) { y109.loadNewGeometry(4, 100.0, value, value); } );
 				folder5.add( y109, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y109.cvfUniforms.scale.value = value; } );
 				folder5.addColor( y109, "color").onChange( function(value) { y109.setColor(value); } );
 
 				// Add a folder for the Yy parameters:
-                var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
-                folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); } );
-                folder6.add( densitymap, "wireframe" ).onChange( function(value) { densitymap.material.wireframe = value; densitymap.material.needsUpdate = true; } );
+				var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
+				folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); } );
+				folder6.add( densitymap, "wireframe" ).onChange( function(value) { densitymap.material.wireframe = value; densitymap.material.needsUpdate = true; } );
 				folder6.add( densitymap, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.contrast.value = value; } );
 				folder6.add( densitymap, "shape", 0.0, 3.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.shape.value = value; } );
 				folder6.add( densitymap, "N", 12, 120, 12 ).onChange( function(value)    { densitymap.N = value; densitymap.reset(); } );
@@ -964,9 +964,9 @@
 				folder1.open();
 				// folder2.open();
 				// folder3.open();
-                // folder4.open();
-                // folder5.open();
-                folder6.open();
+				// folder4.open();
+				// folder5.open();
+				folder6.open();
 			}
 
 			function getCameraConstant( camera ) {
