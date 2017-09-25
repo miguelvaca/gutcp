@@ -199,9 +199,9 @@
 				static getCvfVertex(mode, radius, i_theta, THETA, i_phi, PHI) {
 					var theta = 2.0 * Math.PI * i_theta / THETA;
 		
-					// Setup the 3x3 rotation matrix from GUTCP Eq(1.84)
 					var cvfRot = [];
 					if(mode == 1) {
+						// Setup the 3x3 rotation matrix from GUTCP Eq(1.84) BECVF
 						cvfRot[0+0] = ( 0.5 + 0.5*Math.cos(theta));
 						cvfRot[0+1] = (-0.5 + 0.5*Math.cos(theta));
 						cvfRot[0+2] = (-0.70711*Math.sin(theta));
@@ -212,7 +212,7 @@
 						cvfRot[6+1] = ( 0.70711*Math.sin(theta));
 						cvfRot[6+2] = (Math.cos(theta));
 					} else {
-						// Setup the 3x3 rotation matrix from GUTCP Eq(1.95)
+						// Setup the 3x3 rotation matrix from GUTCP Eq(1.95) OCVF
 						cvfRot[0+0] = ( 0.25 * (1.0 + 3.0*Math.cos(theta)));
 						cvfRot[0+1] = ( 0.25 * (-1.0 + Math.cos(theta) + 2.0 * 1.414 * Math.sin(theta)));
 						cvfRot[0+2] = ( 0.25 * (-1.414 + 1.414 * Math.cos(theta) - 2.0 * Math.sin(theta)));
@@ -227,9 +227,11 @@
 					var phi;
 					var cvf = [];
 					if(mode == 1) {
+						// Setup the BECVF basis current loop:
 						phi = 2.0 * Math.PI * i_phi / PHI;
 						cvf = [0.0, (radius * Math.cos(phi)), (-radius * Math.sin(phi))];
 					} else {
+						// Setup the OCVF basis current loop:
 						phi = 2.0 * Math.PI * i_phi / PHI + 0.5 * Math.PI;  // Half-PI phase addition is to correct a kink visual artefact
 						cvf = [(0.707*effectController.radius * Math.cos(phi)), 
 							   (0.707*effectController.radius * Math.cos(phi)), 
@@ -509,48 +511,6 @@
 				}
 			}
 
-			/*
-			// Initialise the lookup table indices:
-			var fast_index = [];
-			for(var i_x=0; i_x < 10; i_x++) {
-				fast_index[i_x] = [];
-				for(var i_y=0; i_y < 10; i_y++) {
-					fast_index[i_x][i_y] = [];
-					for(var i_z=0; i_z < 10; i_z++) {
-						fast_index[i_x][i_y][i_z] = [];
-					}
-				}
-			}
-		
-			// Populate the lookup table with the vertex and its index:
-			for(var i = 0; i < densitymapVertices.count; i++) {
-				var hx = Math.trunc(densitymapVertices.getX(i)/20.0) + 5;
-				var hy = Math.trunc(densitymapVertices.getY(i)/20.0) + 5;
-				var hz = Math.trunc(densitymapVertices.getZ(i)/20.0) + 5;
-				//console.log(densitymapVertices.getX(i),densitymapVertices.getY(i),densitymapVertices.getZ(i));
-				//console.log(hx, hy, hz);
-				fast_index[hx][hy][hz].push(i);
-			}
-			*/
-			/*
-				var hx = Math.trunc(geo[0][i]/20.0) + 5;
-				var hy = Math.trunc(geo[0][i+1]/20.0) + 5;
-				var hz = Math.trunc(geo[0][i+2]/20.0) + 5;
-			
-				// Now find all the vertices in the bin, and increment its histogram:
-				for(var j=0; j<fast_index[hx][hy][hz].length; ++j) {
-					var num = densitymapHistogram.getX(fast_index[hx][hy][hz][j]);
-					//console.log(hx, hy, hz, num);
-					densitymapHistogram.setX(fast_index[hx][hy][hz][j], num+1.0);
-				
-					// Find highest value in array:
-					if(num+1.0 > highestValueInArray) {
-						highestValueInArray = num+1.0;
-						console.log(highestValueInArray);
-					}
-				}
-			*/
-			
 			class DensityMap {
 				constructor() {
 					// Heatmap specific stuff:
@@ -595,6 +555,30 @@
 					this.M = 12;
 					this.PHI = 60;
 					this.hasWork = false;
+					
+					// The next two for-loops are to create a 3-dimensional lookup-table to significantly
+					// speed-up the generation of the heat-map by only iterating through a limited set of
+					// vertices. Without this, high-resolution spheres become unwieldy, as every vertex in the 
+					// sphere has to be ranged for EVERY point in the NxMxPHI orbitsphere. (Poor scalability.)
+					
+					// Initialise the 12x12x12 lookup table indices:
+					this.fast_index = [];
+					for(var i_x=0; i_x < 12; i_x++) {
+						this.fast_index[i_x] = [];
+						for(var i_y=0; i_y < 12; i_y++) {
+							this.fast_index[i_x][i_y] = [];
+							for(var i_z=0; i_z < 12; i_z++) {
+								this.fast_index[i_x][i_y][i_z] = [];
+							}
+						}
+					}
+					// Populate the lookup table with the vertex and its index:
+					for(var i = 0; i < this.densitymapVertices.count; i++) {
+						var hx = Math.trunc(this.densitymapVertices.getX(i)/25.0) + 6;
+						var hy = Math.trunc(this.densitymapVertices.getY(i)/25.0) + 6;
+						var hz = Math.trunc(this.densitymapVertices.getZ(i)/25.0) + 6;
+						this.fast_index[hx][hy][hz].push(i);
+					}
 				}
 				
 				// Insert the geometries into the scenegraph's sceneObject:
@@ -651,17 +635,19 @@
 							for(; this.i_m < this.M; ++this.i_m) {
 								for(; this.i_n < this.N; ++this.i_n) {
 									var geo = CVF.getY00Vertex (1, 98.0, this.i_n, this.N, this.i_m, this.M, this.i_phi, this.PHI);
-									
+									/*
+									// Original code without the 3-dimensional 12x12x12 index look-up optimization:
 									var hx = geo[0];
 									var hy = geo[1];
 									var hz = geo[2];
 				
 									for(var j = 0; j < this.densitymapVertices.count; j++) {
-										var range = Math.pow(hx - this.densitymapVertices.getX(j), 2)
-												  + Math.pow(hy - this.densitymapVertices.getY(j), 2)
-												  + Math.pow(hz - this.densitymapVertices.getZ(j), 2);
+										var rangeSquared = Math.pow(hx - this.densitymapVertices.getX(j), 2)
+														 + Math.pow(hy - this.densitymapVertices.getY(j), 2)
+														 + Math.pow(hz - this.densitymapVertices.getZ(j), 2);
 										
-										if(range < 225.0) {
+										// Use a range of 15 pixels, so 15*15=225:
+										if(rangeSquared < 225.0) {
 											var num = this.densitymapHistogram.getX(j);
 											this.densitymapHistogram.setX(j, num+1.0);
 					
@@ -671,6 +657,38 @@
 											}
 										}
 									}
+									*/
+									// Obtain xyz coords of the CVF vertex:
+									var hx = Math.trunc(geo[0]/25.0) + 6;
+									var hy = Math.trunc(geo[1]/25.0) + 6;
+									var hz = Math.trunc(geo[2]/25.0) + 6;
+									
+									// Look in the buckets/bins on either side of this point, to capture all vertices in range:
+									for(var xx=-1; xx<2; ++xx) {
+									for(var yy=-1; yy<2; ++yy) {
+									for(var zz=-1; zz<2; ++zz) {
+									
+									// Now find all the vertices in the bin, and increment its histogram:
+									for(var j=0; j < this.fast_index[hx+xx][hy+yy][hz+zz].length; ++j) {
+										var rangeSquared = Math.pow(geo[0] - this.densitymapVertices.getX(this.fast_index[hx+xx][hy+yy][hz+zz][j]), 2)
+														 + Math.pow(geo[1] - this.densitymapVertices.getY(this.fast_index[hx+xx][hy+yy][hz+zz][j]), 2)
+														 + Math.pow(geo[2] - this.densitymapVertices.getZ(this.fast_index[hx+xx][hy+yy][hz+zz][j]), 2);
+										
+										// Use a range of 15 pixels, so 15*15=225:
+										if(rangeSquared < 225.0) {
+											var num = this.densitymapHistogram.getX(this.fast_index[hx+xx][hy+yy][hz+zz][j]);
+											this.densitymapHistogram.setX(this.fast_index[hx+xx][hy+yy][hz+zz][j], num+1.0);
+					
+											// Find highest value in array:
+											if((num+1.0) > this.densitymapUniforms.maxHistogramValue.value) {
+												this.densitymapUniforms.maxHistogramValue.value = num+1.0;
+											}
+										}
+									}
+									}
+									}
+									}
+									
 									if(++count >= value) {
 										this.densitymapHistogram.needsUpdate = true;
 										break OUT;
@@ -691,6 +709,7 @@
 				}
 			}
 
+			
 			init();
 			animate();
 
@@ -722,8 +741,6 @@
                     alphaGrid:  1.0,
                     enableBlkSphere: false,
 				};
-
-				//initComputeRenderer();
 
 				stats = new Stats();
 				container.appendChild( stats.dom );
@@ -852,7 +869,7 @@
 
                 gridUniforms = {
                     cameraConstant: { value: getCameraConstant( camera ) },
-                    gridBrightness: { value: 0.4 },
+                    gridBrightness: { value: 0.3 },
                     alphaGrid: { value: 1.0 }
                 };
                 
@@ -870,7 +887,7 @@
 				gridGeometry.updateMatrix();
 				
 				scene.add( gridGeometry );
-			}
+            }
 
 			function onWindowResize() {
 
@@ -884,23 +901,23 @@
 
 			function dynamicValuesChanger() {
 
-				gridUniforms.gridBrightness.value = effectController.gridBrightness;
-				if(effectController.gridBrightness >= 0.05) {
-					gridGeometry.visible = true;
+                gridUniforms.gridBrightness.value = effectController.gridBrightness;
+                if(effectController.gridBrightness >= 0.05) {
+                	gridGeometry.visible = true;
 				} else {
-					gridGeometry.visible = false;
+                	gridGeometry.visible = false;
 				}
-				gridUniforms.alphaGrid.value = effectController.alphaGrid;
-				blackSphere.visible = effectController.enableBlkSphere;
+                gridUniforms.alphaGrid.value = effectController.alphaGrid;
+                blackSphere.visible = effectController.enableBlkSphere;
 
-				becvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+                becvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				becvf.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
-				ocvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+                ocvf.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				ocvf.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
 				
-				y103.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+                y103.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				y103.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
-				y109.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
+                y109.cvfUniforms.waveSpeed.value = effectController.waveSpeed;
 				y109.cvfUniforms.wavesPerRing.value = effectController.wavesPerRing;
 			}
 
@@ -910,15 +927,15 @@
 
 				// Add a folder to hold all the common parameters:
 				var folder1 = gui.addFolder( 'Common parameters' );
-				folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
+                folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( dynamicValuesChanger );
 				folder1.add( effectController, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
 				// folder1.add( effectController, "alphaGrid", 0.0, 1.0, 0.05 ).onChange( dynamicValuesChanger );
-				folder1.add( effectController, "enableBlkSphere" ).onChange( dynamicValuesChanger );
+                folder1.add( effectController, "enableBlkSphere" ).onChange( dynamicValuesChanger );
 
 				// Add a folder for the BECVF parameters:
 				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
-				folder2.add( becvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { becvf.setVisibility(value); } );
+                folder2.add( becvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { becvf.setVisibility(value); } );
 				folder2.add( becvf, "animate" ).onChange( function(value) { becvf.setAnimate(value); } );
 				folder2.add( becvf, "resolution", 60, 360, 60).onChange( function(value) { becvf.loadNewGeometry(1, 100.0, value, value); } );
 				folder2.add( becvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { becvf.cvfUniforms.scale.value = value; } );
@@ -926,32 +943,32 @@
 
 				// Add a folder for the OCVF parameters:
 				var folder3 = gui.addFolder( 'OCVF - Orbitsphere CVF (Eq 1.95)' );
-				folder3.add( ocvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { ocvf.setVisibility(value); } );
+                folder3.add( ocvf, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { ocvf.setVisibility(value); } );
 				folder3.add( ocvf, "animate" ).onChange( function(value) { ocvf.setAnimate(value); } );
 				folder3.add( ocvf, "resolution", 60, 360, 60).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, value, value); } );
 				folder3.add( ocvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { ocvf.cvfUniforms.scale.value = value; } );
 				folder3.addColor( ocvf, "color").onChange( function(value) { ocvf.setColor(value); } );
 
-				// Add a folder for the Y parameters:
-				var folder4 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
-				folder4.add( y103, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y103.setVisibility(value); } );
-				folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
+				// Add a folder for the Y00 Eq 1.103 parameters:
+                var folder4 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
+                folder4.add( y103, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y103.setVisibility(value); } );
+                folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
 				folder4.add( y103, "resolution", 60, 360, 60).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, value); } );
 				folder4.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
 				folder4.addColor( y103, "color").onChange( function(value) { y103.setColor(value); } );
 
-				// Add a folder for the Yy parameters:
-				var folder5 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.109)' );
-				folder5.add( y109, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y109.setVisibility(value); } );
-				folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
+				// Add a folder for the Y00 Eq 1.109 parameters:
+                var folder5 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.109)' );
+                folder5.add( y109, "visibility", ['hide', 'points', 'lines'] ).onChange( function(value) { y109.setVisibility(value); } );
+                folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
 				folder5.add( y109, "resolution", 60, 360, 60).onChange( function(value) { y109.loadNewGeometry(4, 100.0, value, value); } );
 				folder5.add( y109, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y109.cvfUniforms.scale.value = value; } );
 				folder5.addColor( y109, "color").onChange( function(value) { y109.setColor(value); } );
 
-				// Add a folder for the Yy parameters:
-				var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
-				folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); } );
-				folder6.add( densitymap, "wireframe" ).onChange( function(value) { densitymap.material.wireframe = value; densitymap.material.needsUpdate = true; } );
+				// Add a folder for the Y00 Eq 1.19-20 current density map parameters:
+                var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
+                folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); } );
+                folder6.add( densitymap, "wireframe" ).onChange( function(value) { densitymap.material.wireframe = value; densitymap.material.needsUpdate = true; } );
 				folder6.add( densitymap, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.contrast.value = value; } );
 				folder6.add( densitymap, "shape", 0.0, 3.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.shape.value = value; } );
 				folder6.add( densitymap, "N", 12, 120, 12 ).onChange( function(value)    { densitymap.N = value; densitymap.reset(); } );
@@ -964,9 +981,9 @@
 				folder1.open();
 				// folder2.open();
 				// folder3.open();
-				// folder4.open();
-				// folder5.open();
-				folder6.open();
+                // folder4.open();
+                // folder5.open();
+                folder6.open();
 			}
 
 			function getCameraConstant( camera ) {
@@ -984,7 +1001,7 @@
 				ocvf.setTime(tick);
 				y103.setTime(tick);
 				y109.setTime(tick);
-				densitymap.process(200);
+				densitymap.process(400);
 
 				// Tell WebGL to call the 'animate()' function for the next screen refresh:
 				requestAnimationFrame( animate );
