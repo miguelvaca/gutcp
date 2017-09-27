@@ -52,6 +52,7 @@
 				gl_PointSize = 3.0;
 				gl_Position = projectionMatrix * mvPosition;
 			}
+
 		</script>
 
         <!-- Heatmap vertex shader - Use this to update the position due to camera projection -->
@@ -85,6 +86,7 @@
 				gl_PointSize = 2.0;
 				gl_Position = projectionMatrix * mvPosition;
 			}
+
 		</script>
 
         <!-- Grid vertex shader - Use this to update the position due to camera projection -->
@@ -107,6 +109,7 @@
                 gl_PointSize = 2.0;
                 gl_Position = projectionMatrix * mvPosition;
             }
+
         </script>
 
 		<!-- VERTICES fragment shader -->
@@ -985,6 +988,7 @@
 				renderer.render( scene, camera );
 				stats.update();
 			}
+
 		</script>
 	</body>
 </html>
