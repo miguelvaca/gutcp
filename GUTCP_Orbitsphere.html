@@ -669,15 +669,16 @@
 									for(var zz=-1; zz<2; ++zz) {
 									
 									// Now find all the vertices in the bin, and increment its histogram:
-									for(var j=0; j < this.fast_index[hx+xx][hy+yy][hz+zz].length; ++j) {
-										var rangeSquared = Math.pow(geo[0] - this.densitymapVertices.getX(this.fast_index[hx+xx][hy+yy][hz+zz][j]), 2)
-														 + Math.pow(geo[1] - this.densitymapVertices.getY(this.fast_index[hx+xx][hy+yy][hz+zz][j]), 2)
-														 + Math.pow(geo[2] - this.densitymapVertices.getZ(this.fast_index[hx+xx][hy+yy][hz+zz][j]), 2);
+									for(var j=0, jl=this.fast_index[hx+xx][hy+yy][hz+zz].length; j < jl; ++j) {
+										var pos = this.fast_index[hx+xx][hy+yy][hz+zz][j];
+										var rangeSquared = Math.pow(geo[0] - this.densitymapVertices.getX(pos), 2)
+														 + Math.pow(geo[1] - this.densitymapVertices.getY(pos), 2)
+														 + Math.pow(geo[2] - this.densitymapVertices.getZ(pos), 2);
 										
 										// Use a range of 15 pixels, so 15*15=225:
 										if(rangeSquared < 225.0) {
-											var num = this.densitymapHistogram.getX(this.fast_index[hx+xx][hy+yy][hz+zz][j]);
-											this.densitymapHistogram.setX(this.fast_index[hx+xx][hy+yy][hz+zz][j], num+1.0);
+											var num = this.densitymapHistogram.getX(pos);
+											this.densitymapHistogram.setX(pos, num+1.0);
 					
 											// Find highest value in array:
 											if((num+1.0) > this.densitymapUniforms.maxHistogramValue.value) {
@@ -970,10 +971,10 @@
                 folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); } );
                 folder6.add( densitymap, "wireframe" ).onChange( function(value) { densitymap.material.wireframe = value; densitymap.material.needsUpdate = true; } );
 				folder6.add( densitymap, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.contrast.value = value; } );
-				folder6.add( densitymap, "shape", 0.0, 3.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.shape.value = value; } );
+				folder6.add( densitymap, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.shape.value = value; } );
 				folder6.add( densitymap, "N", 12, 120, 12 ).onChange( function(value)    { densitymap.N = value; densitymap.reset(); } );
 				folder6.add( densitymap, "M", 12, 120, 12 ).onChange( function(value)    { densitymap.M = value; densitymap.reset(); } );
-				folder6.add( densitymap, "PHI", 60, 360, 30 ).onChange( function(value) { densitymap.PHI = value; densitymap.reset(); } );
+				folder6.add( densitymap, "PHI", 60, 360, 20 ).onChange( function(value) { densitymap.PHI = value; densitymap.reset(); } );
 				folder6.add( densitymap, "pause");
 				folder6.addColor( densitymap, "hiColor").onChange( function(value) { densitymap.setHiColor(value); } );
 				folder6.addColor( densitymap, "loColor").onChange( function(value) { densitymap.setLoColor(value); } );
