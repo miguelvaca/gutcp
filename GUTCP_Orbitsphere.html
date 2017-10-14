@@ -107,7 +107,7 @@
 				effectController = {
                     waveSpeed: 0.50,
 					wavesPerRing: 1.0,
-                    enableBlkSphere: false
+                    enableBlkSphere: true
 				};
 
 				stats = new Stats();
@@ -163,7 +163,7 @@
 				geometry = new THREE.SphereBufferGeometry( 97, 32, 32 );
 				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
 				blackSphere = new THREE.Mesh( geometry, material );
-				blackSphere.visible = false;
+				blackSphere.visible = true;
 				scene.add( blackSphere );            
 			}
 			
@@ -274,7 +274,7 @@
 				y109.setTime(tick);
 				
 				// Process up-to 400 geometric points in density bins during each refresh cycle. A value of 400 
-				// seems to be effective compromise.
+				// seems to be an effective compromise.
 				densitymap.process(400);
 
 				// Tell WebGL to call the 'animate()' function for the next screen refresh:
