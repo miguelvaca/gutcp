@@ -296,8 +296,8 @@ class CVF {
 		this.cvfUniforms = {
 			//cameraConstant: { value: getCameraConstant( camera ) },
 			uTime:     { value: 0.0 },
-			waveSpeed: { value: 0.25 },
-			wavesPerRing: { value: 2.0 },
+			waveSpeed: { value: 0.5 },
+			wavesPerRing: { value: 1.0 },
 			scale:     { value: this.scale },
 			animate:   { value: this.animate },
 			swapAnimDir: { value: this.swapAnimDir},
