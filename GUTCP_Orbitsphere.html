@@ -106,7 +106,7 @@
 				// belong somewhere else. Not pretty, but does the trick.
 				effectController = {
                     waveSpeed: 0.50,
-					wavesPerRing: 2.0,
+					wavesPerRing: 1.0,
                     enableBlkSphere: false
 				};
 
@@ -136,9 +136,9 @@
 				ocvf.insertScene(scene);
 				
 				// Create the Y00 visualisation geometry and insert it into the scene:
-				y103 = new CVF(3, 100.0, 60, 60);
+				y103 = new CVF(3, 100.0, 90, 60);
 				y103.setColor([0, 255, 0, 1.0]);
-				y103.setVisibility(false);
+				y103.setVisibility(true);
 				y103.insertScene(scene);
 				
 				// Create the orthogonal Y00 visualisation geometry and insert it into the scene:
@@ -150,7 +150,7 @@
 				// Create the Y00 density map simulator and insert its geometry into the scene:
 				densitymap = new DensityMap();
 				densitymap.insertScene(scene);
-				densitymap.setVisibility(true);
+				densitymap.setVisibility(false);
 				densitymap.reset();
 				
 				// Add all the controls for the various visualisations
@@ -256,9 +256,9 @@
 				folder1.open();
 				// folder2.open();
 				// folder3.open();
-                // folder4.open();
+                folder4.open();
                 // folder5.open();
-                folder6.open();
+                // folder6.open();
 			}
 
 			function animate() {
