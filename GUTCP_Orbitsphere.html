@@ -40,28 +40,27 @@
         <div id="info">
             <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 1.5 - Generation of the Orbitsphere CVFs</a>
             <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
-            <!-- <br> Select points per great circle: <span id="options"></span><br/> -->
         </div>
 
-		<script src="https://threejs.org/build/three.js"></script>
-		<script src="https://threejs.org/examples/js/Detector.js"></script>
-		<script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
-		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
-		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-		<script src="./gutcp.js"></script>
-
-		<!--script src="./three.js/build/three.js"></script-->
-		<!--script src="./three.js/examples/js/Detector.js"></script-->
-		<!--script src="./three.js/examples/js/libs/stats.min.js"></script-->
-		<!--script src="./three.js/examples/js/libs/dat.gui.min.js"></script-->
-		<!--script src="./three.js/examples/js/controls/OrbitControls.js"></script-->
+		<!--script src="https://threejs.org/build/three.js"></script-->
+		<!--script src="https://threejs.org/examples/js/Detector.js"></script-->
+		<!--script src="https://threejs.org/examples/js/libs/stats.min.js"></script-->
+		<!--script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script-->
+		<!--script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script-->
 		<!--script src="./gutcp.js"></script-->
+
+		<script src="./three.js/build/three.js"></script>
+		<script src="./three.js/examples/js/Detector.js"></script>
+		<script src="./three.js/examples/js/libs/stats.min.js"></script>
+		<script src="./three.js/examples/js/libs/dat.gui.min.js"></script>
+		<script src="./three.js/examples/js/controls/OrbitControls.js"></script>
+		<script src="./gutcp.js"></script>
 
 		<script>
 
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-			var container, stats;
+			var container; //, stats;
 			var camera, scene, renderer, geometry, controls;
 			var clock = new THREE.Clock();
 			var tick = 0;
@@ -73,18 +72,24 @@
             var y109;
 
             var densitymap;
-            
             var blackSphere;
 
-			var gridGeometry;
-            var gridUniforms;
-
+			var grid;
             var effectController;
             
 			init();
 			animate();
 
 			function init() {
+
+				// A global structure used to store a couple of the adjustable parameters that don't easily
+				// belong somewhere else. Not pretty, but does the trick.
+				effectController = {
+                    waveSpeed: 			0.50,
+					wavesPerRing: 		2.0,
+                    enableBlkSphere: 	false,
+                    background: 		[0, 0, 0]
+				};
 
 				container = document.createElement( 'div' );
 				document.body.appendChild( container );
@@ -94,30 +99,25 @@
 				camera.position.z = 400;
 
 				scene = new THREE.Scene();
+				scene.background = new THREE.Color(effectController.background[0]/255.0, effectController.background[1]/255.0, effectController.background[2]/255.0);
 
-				renderer = new THREE.WebGLRenderer();
+				//renderer = new THREE.WebGLRenderer({antialias:true});
+				renderer = new THREE.WebGLRenderer({antialias:true});
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				container.appendChild( renderer.domElement );
 
 				controls = new THREE.OrbitControls( camera, renderer.domElement );
 
-				// A global structure used to store a couple of the adjustable parameters that don't easily
-				// belong somewhere else. Not pretty, but does the trick.
-				effectController = {
-                    waveSpeed: 0.50,
-					wavesPerRing: 1.0,
-                    enableBlkSphere: true
-				};
-
-				stats = new Stats();
-				container.appendChild( stats.dom );
-
+				//stats = new Stats();
+				//container.appendChild( stats.dom );
 				window.addEventListener( 'resize', onWindowResize, false );
 				
 				// Create and load the grid into the scene:
 				grid = new Grid();
 				grid.insertScene(scene);
+				grid.setBrightness(0.30);
+				grid.setBackground(effectController.background);
 				
 				// Create and load a black sphere into the scene that is useful to hide the far-half of the 
 				// geometries. The radius of the black sphere is 97, as the default radius of most of the 
@@ -127,23 +127,27 @@
 				// Create the BECVF visualisation and insert it into the scene:
 				becvf = new CVF(1, 100.0, 60, 60);
 				becvf.setVisibility(false);
+				becvf.setBackground(effectController.background);
 				becvf.insertScene(scene);
 				
 				// Create the OCVF visualisation and insert it into the scene:
 				ocvf = new CVF(2, 100.0, 60, 60);
 				ocvf.setColor([0, 0, 255, 1.0]);
+				ocvf.setBackground(effectController.background);
 				ocvf.setVisibility(false);
 				ocvf.insertScene(scene);
 				
 				// Create the Y00 visualisation geometry and insert it into the scene:
-				y103 = new CVF(3, 100.0, 90, 60);
+				y103 = new CVF(3, 100.0, 60, 60);
 				y103.setColor([0, 255, 0, 1.0]);
+				y103.setBackground(effectController.background);
 				y103.setVisibility(true);
 				y103.insertScene(scene);
 				
 				// Create the orthogonal Y00 visualisation geometry and insert it into the scene:
 				y109 = new CVF(4, 100.0, 60, 60);
 				y109.setColor([255, 0, 255, 1.0]);
+				y109.setBackground(effectController.background);
 				y109.setVisibility(false);
 				y109.insertScene(scene);
 				
@@ -155,6 +159,7 @@
 				
 				// Add all the controls for the various visualisations
                 initGUI();
+                //addTextOutput("MB","#f08","#201");
 			}
 			
 			function init_BlackSphere() {
@@ -163,7 +168,7 @@
 				geometry = new THREE.SphereBufferGeometry( 97, 32, 32 );
 				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
 				blackSphere = new THREE.Mesh( geometry, material );
-				blackSphere.visible = true;
+				blackSphere.visible = false;
 				scene.add( blackSphere );            
 			}
 			
@@ -180,6 +185,28 @@
 			function getCameraConstant( camera ) {
 				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
 			}
+/*
+			// "MB","#f08","#201"
+			function addTextOutput(h,k,l) {
+				var c=Infinity,g=0,e=Math.round,a=e(window.devicePixelRatio||1),r=80*a,f=48*a,t=3*a,u=2*a,d=3*a,m=15*a,n=74*a,p=30*a,q=document.createElement("canvas");
+				q.width=r;
+				q.height=f;
+				q.style.cssText="width:80px;height:48px";
+				
+				var b=q.getContext("2d");
+				b.font="bold "+9*a+"px Helvetica,Arial,sans-serif";
+				b.textBaseline="top";
+				b.fillStyle=l;
+				b.fillRect(0,0,r,f);
+				b.fillStyle=k;
+				b.fillText(h,t,u);
+				b.fillRect(d,m,n,p);
+				b.fillStyle=l;
+				b.globalAlpha=.9;
+				b.fillRect(d,m,n,p);
+				b.strokeText('Miguel', 5, 5);
+			}
+*/
 
 			function initGUI() {
 				// Create the parameter control panel (on the right)
@@ -187,7 +214,7 @@
 
 				// Add a folder to hold all the common parameters:
 				var folder1 = gui.addFolder( 'Common parameters' );
-                folder1.add( effectController, "waveSpeed", 0.05, 3.0, 0.05 ).onChange( function(value) { 
+                folder1.add( effectController, "waveSpeed", 0.0, 3.0, 0.01 ).onChange( function(value) { 
                 	becvf.cvfUniforms.waveSpeed.value = value; 
                 	ocvf.cvfUniforms.waveSpeed.value = value;
 					y103.cvfUniforms.waveSpeed.value = value;
@@ -201,6 +228,14 @@
                 } );
 				folder1.add( grid, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
                 folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
+				folder1.addColor( effectController, "background").onChange( function(value) { 
+					scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
+                	becvf.setBackground(value);
+                	ocvf.setBackground(value);
+                	y103.setBackground(value);
+                	y109.setBackground(value);
+					grid.setBackground(value);
+                } );
 
 				// Add a folder for the BECVF parameters:
 				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
@@ -209,7 +244,10 @@
 				folder2.add( becvf, "swapAnimDir" ).onChange( function(value) { becvf.swapAnimationDirection(value); } );
 				folder2.add( becvf, "theta", 60, 180, 30).onChange( function(value) { becvf.loadNewGeometry(1, 100.0, value, becvf.phi); } );
 				folder2.add( becvf, "phi", 30, 180, 30).onChange( function(value) { becvf.loadNewGeometry(1, 100.0, becvf.theta, value); } );
-				folder2.add( becvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { becvf.cvfUniforms.scale.value = value; } );
+				folder2.add( becvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { 
+					becvf.cvfUniforms.scale.value = value; 
+					//canvas.strokeText('Miguel', 100, 100);
+				} );
 				folder2.addColor( becvf, "color").onChange( function(value) { becvf.setColor(value); } );
 
 				// Add a folder for the OCVF parameters:
@@ -220,6 +258,7 @@
 				folder3.add( ocvf, "theta", 60, 180, 30).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, value, ocvf.phi); } );
 				folder3.add( ocvf, "phi", 30, 180, 30).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, ocvf.theta, value); } );
 				folder3.add( ocvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { ocvf.cvfUniforms.scale.value = value; } );
+				folder3.add( ocvf, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { ocvf.cvfUniforms.sphere.value = value; } );
 				folder3.addColor( ocvf, "color").onChange( function(value) { ocvf.setColor(value); } );
 
 				// Add a folder for the Y00 Eq 1.103 parameters:
@@ -229,6 +268,10 @@
 				folder4.add( y103, "N_M", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, y103.phi); } );
 				folder4.add( y103, "phi", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, y103.N_M, value); } );
 				folder4.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
+				folder4.add( y103, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { y103.cvfUniforms.sphere.value = value; } );
+				//folder4.add( y103, "pole_theta", 0.0, 360.0, 1.0).onChange( function(value) { 
+				//	y103.cvfUniforms.pole.value = [value]; 	"   vec3  pole    = vec3(100.0*sin(pole_theta*0.01745)*sin(pole_psi*0.01745), 100.0*cos(pole_theta*0.01745), 100.0*sin(pole_theta*0.01745)*cos(pole_psi*0.01745)); \n" + } );
+				//folder4.add( y103, "pole_psi", 0.0, 360.0, 1.0).onChange( function(value) { y103.cvfUniforms.pole_psi.value = value; } );
 				folder4.addColor( y103, "color").onChange( function(value) { y103.setColor(value); } );
 
 				// Add a folder for the Y00 Eq 1.109 parameters:
@@ -253,7 +296,7 @@
 				folder6.addColor( densitymap, "hiColor").onChange( function(value) { densitymap.setHiColor(value); } );
 				folder6.addColor( densitymap, "loColor").onChange( function(value) { densitymap.setLoColor(value); } );
 
-				// folder1.open();
+				folder1.open();
 				// folder2.open();
 				// folder3.open();
                 // folder4.open();
@@ -268,13 +311,13 @@
 				if ( tick < 0 ) tick = 0;
 				
 				// Update the material uniforms with the time, to pass on the elapsed time:
-				becvf.setTime(tick);
-				ocvf.setTime(tick);
-				y103.setTime(tick);
-				y109.setTime(tick);
+				becvf.addTime(delta);
+				ocvf.addTime(delta);
+				y103.addTime(delta);
+				y109.addTime(delta);
 				
 				// Process up-to 400 geometric points in density bins during each refresh cycle. A value of 400 
-				// seems to be an effective compromise.
+				// seems to be effective compromise.
 				densitymap.process(400);
 
 				// Tell WebGL to call the 'animate()' function for the next screen refresh:
@@ -282,7 +325,7 @@
 				
 				// Render the scene, and update the stats:
 				renderer.render( scene, camera );
-				stats.update();
+				//stats.update();
 			}
 		</script>
 	</body>
