@@ -226,7 +226,7 @@
 					y103.cvfUniforms.wavesPerRing.value = value;
 					y109.cvfUniforms.wavesPerRing.value = value;
                 } );
-				folder1.add( grid, "gridBrightness", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
+				folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
                 folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
 				folder1.addColor( effectController, "background").onChange( function(value) { 
 					scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);

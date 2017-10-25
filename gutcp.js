@@ -86,20 +86,7 @@ var cvfVertexShader2 =
 	"	gl_PointSize = 5.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
-/*
-		if(mode == 1) {
-			// Now rotate RH about (-1, 1, 0) axis by -90 degrees, so that it can move as a TEM wave in the +z direction:
-			// [Or equivalently, about (1, -1, 0) by 90 degrees.]
-			vertex2[ 0 ] =    0.5*vertex[0] -   0.5*vertex[1] - 0.707*vertex[2];
-			vertex2[ 1 ] =   -0.5*vertex[0] +   0.5*vertex[1] - 0.707*vertex[2]; 
-			vertex2[ 2 ] =  0.707*vertex[0] + 0.707*vertex[1] + 0.0;
-		} else {
-			// Now rotate LH about (1, 1, 0) axis by +90 degrees, so that it can move as a TEM wave in the +z direction:
-			vertex2[ 0 ] =    0.5*vertex[0] +   0.5*vertex[1] + 0.707*vertex[2];
-			vertex2[ 1 ] =    0.5*vertex[0] +   0.5*vertex[1] - 0.707*vertex[2]; 
-			vertex2[ 2 ] = -0.707*vertex[0] + 0.707*vertex[1] + 0.0;
-		}
-*/
+
 var photonVertexShader = 
 	"uniform float wavesPerRing; 	\n" + 
 	"uniform float waveSpeed; 		\n" + 
@@ -188,22 +175,22 @@ var cvfFragmentShader =
 
 // Grid vertex shader - Use this to update the position due to camera projection 
 var gridVertexShader = 
-	"uniform float gridBrightness; 	\n" + 
+	"uniform float gridContrast; 	\n" + 
 	"uniform vec4 background; 		\n" + 
 	"varying vec4 vColor; 			\n" + 
 
 	"void main() { 					\n" + 
-	"	//vColor = vec4( gridBrightness, gridBrightness, gridBrightness, 1.0 ); \n" + 
-	"		vColor = vec4( (background[0]<0.5) ? gridBrightness*(1.0-background[0])+background[0] : background[0] - gridBrightness*background[0], " + 
-	" 			(background[1]<0.5) ? gridBrightness*(1.0-background[1])+background[1] : background[1] - gridBrightness*background[1], " + 
-	" 			(background[2]<0.5) ? gridBrightness*(1.0-background[2])+background[2] : background[2] - gridBrightness*background[2], 1.0 ); \n" + 
+	"	//vColor = vec4( gridContrast, gridContrast, gridContrast, 1.0 ); \n" + 
+	"		vColor = vec4( (background[0]<0.5) ? gridContrast*(1.0-background[0])+background[0] : background[0] - gridContrast*background[0], " + 
+	" 			(background[1]<0.5) ? gridContrast*(1.0-background[1])+background[1] : background[1] - gridContrast*background[1], " + 
+	" 			(background[2]<0.5) ? gridContrast*(1.0-background[2])+background[2] : background[2] - gridContrast*background[2], 1.0 ); \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 				\n" + 
 	"	gl_PointSize = 1.0; 														\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 								\n" + 
 	"}";
 
 var newGridVertexShader = 
-	"uniform float gridBrightness; 	\n" + 
+	"uniform float gridContrast; 	\n" + 
 	"uniform float gridSize; 		\n" + 
 	"uniform float gridDepth; 		\n" + 
 	"uniform float waveSpeed; 		\n" + 
@@ -213,23 +200,19 @@ var newGridVertexShader =
 
 	"void main() { 					\n" + 
 	"	vec3 newPosition = position.xyz; 											\n" + 
-	"	//newPosition.z = position.z * gridSize - mod(uTime*waveSpeed, gridSize); 	\n" + 
 	"	newPosition.z = position.z * gridSize - mod(uTime*0.15, gridSize); 			\n" + 
 	"	if(newPosition.z > -gridSize) {  											\n" + 
-	"   	float br = abs(newPosition.z / gridSize) * gridBrightness; 				\n" +
-	"		//vColor = vec4( br, br, br, 1.0 ); 								\n" + 
+	"   	float br = abs(newPosition.z / gridSize) * gridContrast; 				\n" +
 	"		vColor = vec4( (background[0]<0.5) ? br*(1.0-background[0])+background[0] : background[0] - br*background[0], " + 
 	" 			(background[1]<0.5) ? br*(1.0-background[1])+background[1] : background[1] - br*background[1], " + 
 	" 			(background[2]<0.5) ? br*(1.0-background[2])+background[2] : background[2] - br*background[2], 1.0 ); \n" + 
 	"	} else if(newPosition.z < -(gridSize * gridDepth)) {  						\n" + 
-	"   	float br = (1.0 - (abs(newPosition.z - (-gridSize * gridDepth)) / gridSize)) * gridBrightness; \n" +
-	"		//vColor = vec4( br : br, br, br, alphaGrid ); 							\n" + 
+	"   	float br = (1.0 - (abs(newPosition.z - (-gridSize * gridDepth)) / gridSize)) * gridContrast; \n" +
 	"		vColor = vec4( (background[0]<0.5) ? br*(1.0-background[0])+background[0] : background[0] - br*background[0], " + 
 	" 			(background[1]<0.5) ? br*(1.0-background[1])+background[1] : background[1] - br*background[1], " + 
 	" 			(background[2]<0.5) ? br*(1.0-background[2])+background[2] : background[2] - br*background[2], 1.0 ); \n" + 
 	"	} else {																	\n" + 
-	"		// vColor = vec4( gridBrightness, gridBrightness, gridBrightness, alphaGrid ); \n" + 
-	"   	float br = gridBrightness; 				\n" +
+	"   	float br = gridContrast; 				\n" +
 	"		vColor = vec4( (background[0]<0.5) ? br*(1.0-background[0])+background[0] : background[0] - br*background[0], " + 
 	" 			(background[1]<0.5) ? br*(1.0-background[1])+background[1] : background[1] - br*background[1], " + 
 	" 			(background[2]<0.5) ? br*(1.0-background[2])+background[2] : background[2] - br*background[2], 1.0 ); \n" + 
@@ -1017,11 +1000,11 @@ class Grid {
 
 		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 		
-		this.gridBrightness = 0.9;
+		this.gridContrast = 0.9;
 		this.background = [0, 0, 0];
 		
 		this.gridUniforms = { 
-			gridBrightness: { value: this.gridBrightness },
+			gridContrast: { value: this.gridContrast },
 			background: 	{ value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) }
 		};
 	
@@ -1093,11 +1076,11 @@ class Grid {
 		
 		this.geometry = new THREE.BufferGeometry();
 		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-		this.gridBrightness = 0.9;
+		this.gridContrast = 0.9;
 		this.background = [0, 0, 0];
 		
 		this.gridUniforms = { 
-			gridBrightness: { value: this.gridBrightness },
+			gridContrast: { value: this.gridContrast },
 			background: 	{ value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) }
 		};
 		
@@ -1121,8 +1104,8 @@ class Grid {
 	
 	// Set the brightness of the grid. Make it invisible if brightness is 0.05 or less.
 	setBrightness(brightness) {
-		this.gridBrightness = brightness;
-		this.gridUniforms.gridBrightness.value = brightness;
+		this.gridContrast = brightness;
+		this.gridUniforms.gridContrast.value = brightness;
 		if(brightness >= 0.05) {
 			this.gridGeometry.visible = true;
 		} else {
@@ -1182,11 +1165,11 @@ class NewGrid {
 		}
 		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 		
-		this.gridBrightness = 0.5;
+		this.gridContrast = 0.5;
 		this.background = [0, 0, 0];
 		
 		this.gridUniforms = { 
-			gridBrightness: { value: this.gridBrightness },
+			gridContrast: { value: this.gridContrast },
 			gridSize: 		{ value: this.cube_size }, 
 			gridDepth: 		{ value: this.depth }, 
 			waveSpeed: 		{ value: 1.0 }, 
@@ -1218,8 +1201,8 @@ class NewGrid {
 	}
 	
 	setBrightness(brightness) {
-		this.gridBrightness = brightness;
-		this.gridUniforms.gridBrightness.value = brightness;
+		this.gridContrast = brightness;
+		this.gridUniforms.gridContrast.value = brightness;
 		if(brightness >= 0.05) {
 			this.gridGeometry.visible = true;
 		} else {
