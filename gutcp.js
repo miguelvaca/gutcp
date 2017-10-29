@@ -103,7 +103,7 @@ var photonVertexShader =
 	"varying vec4  vColor; 			\n" + 
 	"\n" 								+
 	"void main() { 					\n" + 
-	"   mat3  rotation_rhcp = mat3( 0.5, -0.5, 0.707, -0.5, 0.5, 0.707, -0.707, -0.707, 0.0); 	\n" + 
+	"   mat3  rotation_rhcp = mat3( 0.5, -0.5, 0.707, -0.5, 0.5, 0.707, -0.707, -0.707, 0.0); 		\n" + 
 	"   //mat3  rotation_lhcp = mat3( 0.5, 0.5, 0.707, 0.5, 0.5, -0.707, -0.707, 0.707, 0.0); 		\n" + 
 	"   mat3  rotation_lhcp = mat3( 0.5, 0.5, -0.707, 0.5, 0.5, 0.707, 0.707, -0.707, 0.0); 		\n" + 
 	"	vec3 newPosition = position.xyz; \n" + 
@@ -189,7 +189,7 @@ var gridVertexShader =
 	"	gl_Position = projectionMatrix * mvPosition; 								\n" + 
 	"}";
 
-var newGridVertexShader = 
+var movingGridVertexShader = 
 	"uniform float gridContrast; 	\n" + 
 	"uniform float gridSize; 		\n" + 
 	"uniform float gridDepth; 		\n" + 
@@ -212,7 +212,7 @@ var newGridVertexShader =
 	" 			(background[1]<0.5) ? br*(1.0-background[1])+background[1] : background[1] - br*background[1], " + 
 	" 			(background[2]<0.5) ? br*(1.0-background[2])+background[2] : background[2] - br*background[2], 1.0 ); \n" + 
 	"	} else {																	\n" + 
-	"   	float br = gridContrast; 				\n" +
+	"   	float br = gridContrast; 												\n" +
 	"		vColor = vec4( (background[0]<0.5) ? br*(1.0-background[0])+background[0] : background[0] - br*background[0], " + 
 	" 			(background[1]<0.5) ? br*(1.0-background[1])+background[1] : background[1] - br*background[1], " + 
 	" 			(background[2]<0.5) ? br*(1.0-background[2])+background[2] : background[2] - br*background[2], 1.0 ); \n" + 
@@ -1119,7 +1119,7 @@ class Grid {
 	}
 }
 
-class NewGrid {
+class MovingGrid {
 	constructor(width, height, depth, cube_size) {
 		this.width = width; 		// in cubes
 		this.height = height; 		// in cubes
@@ -1182,7 +1182,7 @@ class NewGrid {
 		this.material = new THREE.ShaderMaterial( {
 												uniforms:       this.gridUniforms,
 												linewidth:      2,
-												vertexShader:   newGridVertexShader,
+												vertexShader:   movingGridVertexShader,
 												fragmentShader: cvfFragmentShader
 												} );                                                        
 		this.material.extensions.drawBuffers = true;
