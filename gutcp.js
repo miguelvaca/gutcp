@@ -11,6 +11,7 @@ var cvfVertexShader =
 	"uniform float waveSpeed; 		\n" + 
 	"uniform float uTime; 			\n" + 
 	"uniform float scale; 			\n" + 
+	"uniform float zOffset; 		\n" + 
 	"uniform bool  animate; 		\n" + 
 	"uniform bool  swapAnimDir; 	\n" + 
 	"uniform vec4  color; 			\n" + 
@@ -26,7 +27,9 @@ var cvfVertexShader =
 	"		vColor = color; 																		\n" + 
 	"	} 																							\n" + 
 	"	\n" 																							+	
-	"	vec4 mvPosition = modelViewMatrix * vec4( position.xyz*scale, 1.0 ); 						\n" + 
+	"	vec3 newPosition = position.xyz*scale; 														\n" + 
+	"	newPosition.z += zOffset; 																	\n" + 
+	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
 	"	gl_PointSize = 5.0; 																		\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 												\n" + 
 	"} \n";
@@ -87,6 +90,45 @@ var cvfVertexShader2 =
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
+var electronExcitedVertexShader = 
+	"uniform float wavesPerRing; 	\n" + 
+	"uniform float waveSpeed; 		\n" + 
+	"uniform float uTime; 			\n" + 
+	"uniform float scale; 			\n" + 
+	"uniform float zOffset; 		\n" + 
+	"uniform float normalElectronRadius; \n" + 
+	"uniform float excitedElectronRadius; \n" + 
+	"uniform float photonRadius; 	\n" + 
+	"uniform bool  animate; 		\n" + 
+	"uniform bool  swapAnimDir; 	\n" + 
+	"uniform vec4  color; 			\n" + 
+	"uniform vec4  background; 		\n" + 
+	"varying vec4  vColor; 			\n" + 
+	"const float PI = 3.141592653589793; \n" + 
+	"\n" 								+
+	"void main() { 					\n" + 
+	"	if(animate) { 				\n" + 
+	"		float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0/wavesPerRing) * wavesPerRing; \n" + 
+	"		//vColor = vec4( (1.0-bright)*color[0], (1.0-bright)*color[1], (1.0-bright)*color[2], color[3] ); \n" + 
+	"		vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	\n" + 
+	"	} else { 																					\n" + 
+	"		vColor = color; 																		\n" + 
+	"	} 																							\n" + 
+	"	\n" 																							+	
+	"	vec3 newPosition = position.xyz*(normalElectronRadius/10.0); 								\n" + 
+	"	if(abs(zOffset) <= (excitedElectronRadius + photonRadius)) { 								\n" + 
+	"		vec3 direction_vect = vec3(0.0, 0.0, (zOffset > 0.0) ? photonRadius : -photonRadius);	\n" + 
+	"   	float initial_angle = acos( dot(newPosition, direction_vect) / (length(newPosition) * length(direction_vect)) ); \n" + 
+	"		float photon_angle = PI * (1.0 - (abs(zOffset)/(normalElectronRadius + photonRadius)));	\n" + 
+	" 		if(initial_angle < photon_angle) { \n" + 
+	" 			newPosition *= (excitedElectronRadius / normalElectronRadius); \n" + 
+	" 		}; \n" +
+	" 	} \n" + 
+	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
+	"	gl_PointSize = 5.0; 																		\n" + 
+	"	gl_Position = projectionMatrix * mvPosition; 												\n" + 
+	"} \n";
+
 var photonVertexShader = 
 	"uniform float wavesPerRing; 	\n" + 
 	"uniform float waveSpeed; 		\n" + 
@@ -94,6 +136,7 @@ var photonVertexShader =
 	"uniform float radius; 			\n" + 
 	"uniform float scale; 			\n" + 
 	"uniform float cutoff; 			\n" + 
+	"uniform float zOffset; 		\n" + 
 	"uniform bool  animate; 		\n" + 
 	"uniform bool  swapAnimDir; 	\n" + 
 	"uniform bool  rotate; 			\n" + 
@@ -136,8 +179,107 @@ var photonVertexShader =
 	"		} 																								\n" + 
 	"	} 																									\n" + 
 	"	\n" 																									+	
-	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz*scale, 1.0 ); 							\n" + 
+	"	newPosition *= scale; 		\n" + 
+	"	newPosition.z += zOffset; 	\n" + 
+	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
 	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
+	"} \n";
+
+// var photonAbsorptionVertexShader
+
+var  photonAbsorptionEmissionVertexShader = 
+	"uniform float wavesPerRing; 	\n" + 
+	"uniform float waveSpeed; 		\n" + 
+	"uniform float uTime; 			\n" + 
+	"uniform float radius; 			\n" + 
+	"uniform float scale; 			\n" + 
+	"uniform float cutoff; 			\n" + 
+	"uniform float electronRadius; 	\n" + 
+	"uniform float zOffset; 		\n" + 
+	"uniform float normalElectronRadius; \n" + 
+	"uniform float excitedElectronRadius; \n" + 
+	"uniform bool  animate; 		\n" + 
+	"uniform bool  swapAnimDir; 	\n" + 
+	"uniform bool  rotate; 			\n" + 
+	"uniform bool  rhcp; 			\n" + 
+	"uniform vec4  color; 			\n" + 
+	"uniform vec4  background; 		\n" + 
+	"varying vec4  vColor; 			\n" + 
+	"const float PI = 3.1415926535; \n" + 
+	"\n" 								+
+	"void main() { 					\n" + 
+	"   mat3  rotation_rhcp = mat3( 0.5, -0.5, 0.707, -0.5, 0.5, 0.707, -0.707, -0.707, 0.0); 				\n" + 
+	"   mat3  rotation_lhcp = mat3( 0.5, 0.5, -0.707, 0.5, 0.5, 0.707, 0.707, -0.707, 0.0); 				\n" + 
+	"	vec3 newPosition = position.xyz; \n" + 
+	"	if(rotate) { 				\n" + 
+	"		if(rhcp) { 				\n" + 
+	"			newPosition = rotation_rhcp * position.xyz; \n" + 
+	"		} else { 				\n" + 
+	"			newPosition = rotation_lhcp * position.xyz; \n" + 
+	"		} 						\n" + 
+	"	} else { 					\n" + 
+	"		newPosition = position.xyz; \n" + 
+	"	} \n" + 
+	"	float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0/wavesPerRing) * wavesPerRing; 			\n" + 
+	"	if(animate) { 				\n" + 
+	"		float shift = mod((uTime + uv.x), 1.0); 														\n" +
+	"		if(shift <= cutoff) { \n" + 
+	"			vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	\n" + 
+	"		} else { \n" + 
+	"			vColor = vec4( 0.2*color[0]+0.8*background[0], 0.2*color[1]+0.8*background[1], 0.2*color[2]+0.8*background[2], color[3] );	\n" + 
+	"		}  \n" + 
+	"		newPosition.z = newPosition.z - shift * 2.0 * radius;											\n" + 
+	"	} else { 																							\n" + 
+	"		float shift = mod((uTime + uv.x), 1.0); 														\n" +
+	"		if(shift <= cutoff) { \n" + 
+	"			vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	\n" + 
+	"		} else { \n" + 
+	"			vColor = vec4( 0.0, 0.0, 0.0, 0.0 );	\n" + 
+	"			newPosition = vec3( 0.0, 0.0, 0.0 );	\n" + 
+	"		} 																								\n" + 
+	"	} 																									\n" + 
+	"	\n" 																									+	
+	"	//newPosition *= scale; 															\n" + 
+	"	newPosition *= radius/100.0; 															\n" + 
+	"	if(abs(zOffset) <= (normalElectronRadius + radius)) { 											\n" + 
+	"		vec3 direction_vect = vec3(0.0, 0.0, (zOffset > 0.0) ? -radius : radius);							\n" + 
+	"   	float initial_angle = acos( dot(newPosition, direction_vect) / (length(newPosition) * length(direction_vect)) ); \n" + 
+	"		float photon_angle = PI * (1.0 - (abs(zOffset)/(normalElectronRadius + radius)));			\n" + 
+	"		float electron_angle = photon_angle; 										\n" + 
+	"		float delta_angle = photon_angle > initial_angle ? photon_angle - initial_angle : 0.0 ; 		\n" + 
+	"		photon_angle = photon_angle > initial_angle ? initial_angle : photon_angle;	\n" + 
+	"   	vec3 rotation_axis = normalize( cross(newPosition, direction_vect) ); 		\n" + 
+	"   	float cos_new_angle = cos(photon_angle); 									\n" + 
+	"   	float sin_new_angle = sin(photon_angle); 									\n" + 
+	"   	mat3  rotation_m = mat3( cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.x,2.0), 						\n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.y+sin_new_angle*rotation_axis.z, \n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.z-sin_new_angle*rotation_axis.y, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.y-sin_new_angle*rotation_axis.z, \n" +
+	"   	                         cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.y,2.0), 						\n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z+sin_new_angle*rotation_axis.x, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.z+sin_new_angle*rotation_axis.y, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z-sin_new_angle*rotation_axis.x, \n" +
+	"   	                         cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.z,2.0) );  					\n" + 
+	"   	newPosition = rotation_m * newPosition; \n" + 
+	" 		newPosition.z += (zOffset > 0.0) ? (excitedElectronRadius + radius) : -(excitedElectronRadius + radius); 										\n" + 
+	"   	cos_new_angle = cos(delta_angle > 0.0 ? delta_angle : electron_angle); 										\n" + 
+	"   	sin_new_angle = sin(delta_angle > 0.0 ? delta_angle : electron_angle); 										\n" + 
+	"   	rotation_m = mat3( cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.x,2.0), 								\n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.y+sin_new_angle*rotation_axis.z, \n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.z-sin_new_angle*rotation_axis.y, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.y-sin_new_angle*rotation_axis.z, \n" +
+	"   	                         cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.y,2.0), 						\n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z+sin_new_angle*rotation_axis.x, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.z+sin_new_angle*rotation_axis.y, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z-sin_new_angle*rotation_axis.x, \n" +
+	"   	                         cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.z,2.0) );  					\n" + 
+	"   	newPosition = rotation_m * newPosition; \n" + 
+	"	} else {						\n" + 
+	"		newPosition.z += zOffset; 	\n" + 
+	"	} 								\n" + 
+	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
+	"	gl_PointSize = 1.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
@@ -584,6 +726,7 @@ class CVF {
 		this.cutoff = 0.25;
 		this.radius = radius;
 		this.background = [0.0, 0.0, 0.0];
+		this.z_offset = 0.0;
 		this.rotate = false;
 		this.rhcp = false;
 		
@@ -596,11 +739,12 @@ class CVF {
 			background: { value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) },
 			radius:  	{ value: this.radius },
 			scale:   	{ value: this.scale },
-			sphere:  	{ value: this.sphere },
+			//sphere:  	{ value: this.sphere },
 			pole:  	 	{ value: this.pole },
 			cutoff:  	{ value: this.cutoff },
 			animate: 	{ value: this.animate },
 			swapAnimDir: { value: this.swapAnimDir},
+			zOffset: 	{ value: this.z_offset },
 			rotate: 	{ value: this.rotate },
 			rhcp: 		{ value: this.rhcp },
 			color:   	{ value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) }
@@ -658,6 +802,46 @@ class CVF {
 		if(mode == 8) {
 			cvfGeo = CVF.createPhotonGeometry (2, 2, radius, THETA, PHI);
 			vertex_shader = photonVertexShader;
+			this.cvfUniforms.rhcp.value = false;
+		} else 
+		if(mode == 9) {
+			cvfGeo = CVF.createPhotonGeometry (1, 1, radius, THETA, PHI);
+			vertex_shader = photonAbsorptionEmissionVertexShader;
+			this.cvfUniforms.normalElectronRadius = {value:10.0}; 
+			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 
+			//this.cvfUniforms.photonRadius = {value:100.0};
+			this.cvfUniforms.rhcp.value = true;
+		} else 
+		if(mode == 10) {
+			cvfGeo = CVF.createPhotonGeometry (1, 2, radius, THETA, PHI);
+			vertex_shader = photonAbsorptionEmissionVertexShader;
+			this.cvfUniforms.normalElectronRadius = {value:10.0}; 
+			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 
+			//this.cvfUniforms.photonRadius = {value:100.0};
+			this.cvfUniforms.rhcp.value = true;
+		} else 
+		if(mode == 11) {
+			cvfGeo = CVF.createPhotonGeometry (2, 1, radius, THETA, PHI);
+			vertex_shader = photonAbsorptionEmissionVertexShader;
+			this.cvfUniforms.normalElectronRadius = {value:10.0}; 
+			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 
+			//this.cvfUniforms.photonRadius = {value:100.0};
+			this.cvfUniforms.rhcp.value = false;
+		} else 
+		if(mode == 12) {
+			cvfGeo = CVF.createPhotonGeometry (2, 2, radius, THETA, PHI);
+			vertex_shader = photonAbsorptionEmissionVertexShader;
+			this.cvfUniforms.normalElectronRadius = {value:10.0}; 
+			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 
+			//this.cvfUniforms.photonRadius = {value:100.0};
+			this.cvfUniforms.rhcp.value = false;
+		} else 
+		if(mode == 13) {
+			cvfGeo = CVF.createY00Geometry (3, radius, THETA/5, THETA/5, PHI);
+			vertex_shader = electronExcitedVertexShader;
+			this.cvfUniforms.normalElectronRadius = {value:10.0}; 
+			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 
+			this.cvfUniforms.photonRadius = {value:100.0};
 			this.cvfUniforms.rhcp.value = false;
 		} else { // ERROR condition!!!
 			cvfGeo = CVF.createCvfGeometry (1, radius, THETA, PHI);
@@ -737,6 +921,11 @@ class CVF {
 	// Update the time for the shader to see:
 	setTime( tick_time ) {
 		this.cvfUniforms.uTime.value = tick_time;
+	}
+	
+	// Update the time for the shader to see:
+	setZ( offset ) {
+		this.cvfUniforms.zOffset.value = offset;
 	}
 	
 	swapAnimationDirection(value) {

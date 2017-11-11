@@ -268,7 +268,7 @@
 				folder4.add( y103, "N_M", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, y103.phi); } );
 				folder4.add( y103, "phi", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, y103.N_M, value); } );
 				folder4.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
-				folder4.add( y103, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { y103.cvfUniforms.sphere.value = value; } );
+				//folder4.add( y103, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { y103.cvfUniforms.sphere.value = value; } );
 				//folder4.add( y103, "pole_theta", 0.0, 360.0, 1.0).onChange( function(value) { 
 				//	y103.cvfUniforms.pole.value = [value]; 	"   vec3  pole    = vec3(100.0*sin(pole_theta*0.01745)*sin(pole_psi*0.01745), 100.0*cos(pole_theta*0.01745), 100.0*sin(pole_theta*0.01745)*cos(pole_psi*0.01745)); \n" + } );
 				//folder4.add( y103, "pole_psi", 0.0, 360.0, 1.0).onChange( function(value) { y103.cvfUniforms.pole_psi.value = value; } );

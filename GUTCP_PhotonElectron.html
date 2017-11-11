@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+	<!-- @file   : GUTCP_Photon.html		-->
+	<!-- @author : J Miguel Vaca 			-->
+	<!-- @remark : This webpage uses WebGL to visualise Dr Randell Mill's Photon E&M Vector Fields as defined in -->
+	<!--         : Appendix V of his book The Grand Unified Theory of Classical Physics.  -->
+	<head>
+		<title>GUTCP Photon Capture/Emission</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+				font-family:Monospace;
+				font-size:11px;
+				text-align:center;
+				cursor: pointer;
+			}
+
+			a {
+				color:#0078ff;
+			}
+
+			#info {
+				color: #0f00ff;
+				position: absolute;
+				top: 10px;
+				width: 100%;
+			}
+
+			#warning {
+				color: #ff0000;
+			}
+
+		</style>
+	</head>
+	<body>
+        <div id="info">
+            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP - Photon Capture/Emission Geometry</a>
+            <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
+        </div>
+
+		<script src="https://threejs.org/build/three.js"></script>
+		<script src="https://threejs.org/examples/js/Detector.js"></script>
+		<script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
+		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
+		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+		<script src="./gutcp.js"></script>
+
+		<!--script src="./three.js/build/three.js"></script-->
+		<!--script src="./three.js/examples/js/Detector.js"></script-->
+		<!--script src="./three.js/examples/js/libs/stats.min.js"></script-->
+		<!--script src="./three.js/examples/js/libs/dat.gui.min.js"></script-->
+		<!--script src="./three.js/examples/js/controls/OrbitControls.js"></script-->
+		<!--script src="./gutcp.js"></script-->
+
+		<script>
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container;  //, stats;
+			var camera, scene, renderer, geometry, controls;
+			var clock = new THREE.Clock();
+			var tick = 0;
+			
+			var rhcpe;
+			var rhcpm;
+
+            var lhcpe;
+            var lhcpm;
+
+            var densitymap;
+            var blackSphere;
+
+			var grid;
+            var effectController;
+            
+			init();
+			animate();
+
+			function init() {
+
+				// A global structure used to store a couple of the adjustable parameters that don't easily
+				// belong somewhere else. Not pretty, but does the trick.
+				effectController = {
+					position: 			-200.0,
+                    waveSpeed: 			0.50,
+					wavesPerRing: 		1.0,
+					electronStableRadius: 	10.0,
+					electronExcitedRadius: 	20.0,
+					photonRadius: 		100.0,
+					cutoff: 			0.25,
+                    rotate: 			false,
+                    animate: 			false, 
+                    enableBlkSphere: 	false,
+                    background: 		[0, 0, 0]
+				};
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
+				//camera.position.y = 120;
+				//camera.position.z = 400;
+				camera.position.y = 120;
+				camera.position.x = -400;
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color(effectController.background[0]/255.0, effectController.background[1]/255.0, effectController.background[2]/255.0);
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+								
+				// Create and load the grid into the scene:
+				grid = new Grid();
+				grid.insertScene(scene);
+				grid.setBrightness(0.30);
+				grid.setBackground(effectController.background);
+				
+				// Create the Y00 visualisation geometry and insert it into the scene:
+				y103 = new CVF(13, 10.0, 60, 60);
+				y103.setColor([0, 255, 0, 1.0]);
+				y103.setBackground(effectController.background);
+				y103.setAnimate(true);
+				y103.setVisibility(true);
+				y103.insertScene(scene);
+				
+				// Create the rhcpe visualisation and insert it into the scene:
+				rhcpe = new CVF(9, 100.0, 60, 30);
+				rhcpe.setColor([255, 0, 0]);
+				rhcpe.setBackground(effectController.background);
+				rhcpe.setSpeed(effectController.waveSpeed); 
+				rhcpe.setAnimate(false);
+				rhcpe.setVisibility(true);
+				rhcpe.insertScene(scene);
+				
+				// Create the rhcpm visualisation and insert it into the scene:
+				rhcpm = new CVF(10, 101.0, 60, 30);
+				rhcpm.setColor([0, 0, 255]);
+				rhcpm.setBackground(effectController.background);
+				rhcpm.setSpeed(effectController.waveSpeed); 
+				rhcpm.setAnimate(false);
+				rhcpm.setVisibility(true);
+				rhcpm.insertScene(scene);
+				
+				// Create the lhcpe visualisation geometry and insert it into the scene:
+				lhcpe = new CVF(11, 100.0, 60, 30);
+				lhcpe.setColor([255, 0, 0]);
+				lhcpe.setBackground(effectController.background);
+				lhcpe.setSpeed(effectController.waveSpeed); 
+				lhcpe.setAnimate(false);
+				lhcpe.setVisibility(true);
+				lhcpe.insertScene(scene);
+				
+				// Create the lhcpm visualisation geometry and insert it into the scene:
+				lhcpm = new CVF(12, 101.0, 60, 30);
+				lhcpm.setColor([0, 0, 255]);
+				lhcpm.setBackground(effectController.background);
+				lhcpm.setSpeed(effectController.waveSpeed); 
+				lhcpm.setAnimate(false);
+				lhcpm.setVisibility(true);
+				lhcpm.insertScene(scene);
+				
+				rhcpe.setZ(effectController.position); 
+				rhcpm.setZ(effectController.position); 
+				lhcpe.setZ(effectController.position); 
+				lhcpm.setZ(effectController.position); 
+				y103.setZ(effectController.position); 
+
+				// Add all the controls for the various visualisations
+                initGUI();
+			}
+			
+			function init_BlackSphere() {
+				// Create and insert a black sphere that can be used to obscure the back-half of the geometries.
+				// Make its radius 97, which is less than the 100 radius of the rest of the geometries.
+				geometry = new THREE.SphereBufferGeometry( 97, 32, 32 );
+				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
+				blackSphere = new THREE.Mesh( geometry, material );
+				blackSphere.visible = false;
+				scene.add( blackSphere );            
+			}
+			
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				
+				// TODO - need to notify scene object shaders (via uniforms) here if required!
+				// rhcpeUniforms.cameraConstant.value = getCameraConstant( camera );
+			}
+
+			function getCameraConstant( camera ) {
+				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+			}
+
+			function initGUI() {
+				// Create the parameter control panel (on the right)
+				var gui = new dat.GUI();
+
+				// Add a folder to hold all the common parameters:
+				var folder1 = gui.addFolder( 'Common parameters' );
+                folder1.add( effectController, "position", -300.0, 300.0, 1.00 ).onChange( function(value) { 
+                	rhcpe.setZ(value); 
+                	rhcpm.setZ(value); 
+					lhcpe.setZ(value); 
+					lhcpm.setZ(value); 
+					y103.setZ(value); 
+                } );
+                folder1.add( effectController, "waveSpeed", 0.0, 3.0, 0.01 ).onChange( function(value) { 
+                	rhcpe.setSpeed(value); 
+                	rhcpm.setSpeed(value); 
+					lhcpe.setSpeed(value); 
+					lhcpm.setSpeed(value); 
+					y103.setSpeed(value);
+                } );
+				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( function(value) { 
+                	rhcpe.cvfUniforms.wavesPerRing.value = value; 
+                	rhcpm.cvfUniforms.wavesPerRing.value = value;
+					lhcpe.cvfUniforms.wavesPerRing.value = value;
+					lhcpm.cvfUniforms.wavesPerRing.value = value;
+					y103.cvfUniforms.wavesPerRing.value = value;
+                } );
+				folder1.add( effectController, "cutoff", 0.0, 1.0, 0.01 ).onChange( function(value) { 
+                	rhcpe.cvfUniforms.cutoff.value = value; 
+                	rhcpm.cvfUniforms.cutoff.value = value;
+					lhcpe.cvfUniforms.cutoff.value = value;
+					lhcpm.cvfUniforms.cutoff.value = value;
+					y103.cvfUniforms.cutoff.value = value;
+                } );
+				folder1.add( effectController, "electronStableRadius", 1.0, 20.0, 1.0 ).onChange( function(value) { 
+                	rhcpe.cvfUniforms.normalElectronRadius.value = value; 
+                	rhcpm.cvfUniforms.normalElectronRadius.value = value;
+					lhcpe.cvfUniforms.normalElectronRadius.value = value;
+					lhcpm.cvfUniforms.normalElectronRadius.value = value;
+					y103.cvfUniforms.normalElectronRadius.value = value;
+                } );
+				folder1.add( effectController, "electronExcitedRadius", 2.0, 100.0, 1.0 ).onChange( function(value) { 
+                	rhcpe.cvfUniforms.excitedElectronRadius.value = value; 
+                	rhcpm.cvfUniforms.excitedElectronRadius.value = value;
+					lhcpe.cvfUniforms.excitedElectronRadius.value = value;
+					lhcpm.cvfUniforms.excitedElectronRadius.value = value;
+					y103.cvfUniforms.excitedElectronRadius.value = value;
+                } );
+				folder1.add( effectController, "photonRadius", 2.0, 300.0, 1.0 ).onChange( function(value) { 
+                	rhcpe.cvfUniforms.radius.value = value; 
+                	rhcpm.cvfUniforms.radius.value = value;
+					lhcpe.cvfUniforms.radius.value = value;
+					lhcpm.cvfUniforms.radius.value = value;
+					y103.cvfUniforms.photonRadius.value = value;
+                } );
+				folder1.add( effectController, "rotate" ).onChange( function(value) {                 	
+					rhcpe.setRotate(value);
+                	rhcpm.setRotate(value);
+                	lhcpe.setRotate(value);
+                	lhcpm.setRotate(value);
+				} );
+				folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
+                //folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
+				folder1.addColor( effectController, "background").onChange( function(value) { 
+					scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
+                	rhcpe.setBackground(value);
+                	rhcpm.setBackground(value);
+                	lhcpe.setBackground(value);
+                	lhcpm.setBackground(value);
+					grid.setBackground(value);
+                } );
+
+				// Add a folder for the Y00 Eq 1.103 parameters:
+                var folder2 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
+                folder2.add( y103, "visibility" ).onChange( function(value) { y103.setVisibility(value); } );
+                folder2.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
+				folder2.add( y103, "swapAnimDir" ).onChange( function(value) { y103.swapAnimationDirection(value); } );
+				folder2.add( y103, "N_M", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 10.0, value, y103.phi); } );
+				folder2.add( y103, "phi", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 10.0, y103.N_M, value); } );
+				folder2.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
+				folder2.addColor( y103, "color").onChange( function(value) { y103.setColor(value); } );
+
+				// Add a folder for the rhcpe parameters:
+				var folder3 = gui.addFolder( 'Photon RHCP Electric (Eq V.4)' );
+                folder3.add( rhcpe, "visibility" ).onChange( function(value) { rhcpe.setVisibility(value); } );
+				//folder3.add( rhcpe, "animate" ).onChange( function(value) { rhcpe.setAnimate(value); } );
+				//folder3.add( rhcpe, "swapAnimDir" ).onChange( function(value) { rhcpe.swapAnimationDirection(value); } );
+				folder3.add( rhcpe, "theta", 60, 180, 30).onChange( function(value) { rhcpe.loadNewGeometry(5, 100.0, value, rhcpe.phi); } );
+				folder3.add( rhcpe, "phi", 30, 60, 30).onChange( function(value) { rhcpe.loadNewGeometry(5, 100.0, rhcpe.theta, value); } );
+				//folder3.add( rhcpe, "scale", 0.2, 5.0, 0.05).onChange( function(value) { rhcpe.cvfUniforms.scale.value = value; } );
+				folder3.addColor( rhcpe, "color").onChange( function(value) { rhcpe.setColor(value); } );
+
+				// Add a folder for the rhcpm parameters:
+				var folder4 = gui.addFolder( 'Photon RHCP Magnetic (Eq V.4)' );
+                folder4.add( rhcpm, "visibility" ).onChange( function(value) { rhcpm.setVisibility(value); } );
+				//folder4.add( rhcpm, "animate" ).onChange( function(value) { rhcpm.setAnimate(value); } );
+				//folder4.add( rhcpm, "swapAnimDir" ).onChange( function(value) { rhcpm.swapAnimationDirection(value); } );
+				folder4.add( rhcpm, "theta", 60, 180, 30).onChange( function(value) { rhcpm.loadNewGeometry(6, 102.0, value, rhcpm.phi); } );
+				folder4.add( rhcpm, "phi", 30, 60, 30).onChange( function(value) { rhcpm.loadNewGeometry(6, 102.0, rhcpm.theta, value); } );
+				//folder4.add( rhcpm, "scale", 0.2, 5.0, 0.05).onChange( function(value) { rhcpm.cvfUniforms.scale.value = value; } );
+				folder4.addColor( rhcpm, "color").onChange( function(value) { rhcpm.setColor(value); } );
+
+				// Add a folder for the Y00 Eq 1.103 parameters:
+                var folder5 = gui.addFolder( 'Photon LHCP Electric (Eq V.8)' );
+                folder5.add( lhcpe, "visibility" ).onChange( function(value) { lhcpe.setVisibility(value); } );
+                //folder5.add( lhcpe, "animate" ).onChange( function(value) { lhcpe.setAnimate(value); } );
+				//folder5.add( lhcpe, "swapAnimDir" ).onChange( function(value) { lhcpe.swapAnimationDirection(value); } );
+				folder5.add( lhcpe, "theta", 60, 180, 30).onChange( function(value) { lhcpe.loadNewGeometry(7, 100.0, value, lhcpe.phi); } );
+				folder5.add( lhcpe, "phi", 30, 60, 30).onChange( function(value) { lhcpe.loadNewGeometry(7, 100.0, lhcpe.theta, value); } );
+				//folder5.add( lhcpe, "scale", 0.2, 5.0, 0.05).onChange( function(value) { lhcpe.cvfUniforms.scale.value = value; } );
+				folder5.addColor( lhcpe, "color").onChange( function(value) { lhcpe.setColor(value); } );
+
+				// Add a folder for the Y00 Eq 1.109 parameters:
+                var folder6 = gui.addFolder( 'Photon LHCP Magnetic (Eq V.8)' );
+                folder6.add( lhcpm, "visibility" ).onChange( function(value) { lhcpm.setVisibility(value); } );
+                //folder6.add( lhcpm, "animate" ).onChange( function(value) { lhcpm.setAnimate(value); } );
+				//folder6.add( lhcpm, "swapAnimDir" ).onChange( function(value) { lhcpm.swapAnimationDirection(value); } );
+				folder6.add( lhcpm, "theta", 60, 180, 30).onChange( function(value) { lhcpm.loadNewGeometry(8, 102.0, value, lhcpm.phi); } );
+				folder6.add( lhcpm, "phi", 30, 60, 30).onChange( function(value) { lhcpm.loadNewGeometry(8, 102.0, lhcpm.theta, value); } );
+				//folder6.add( lhcpm, "scale", 0.2, 5.0, 0.05).onChange( function(value) { lhcpm.cvfUniforms.scale.value = value; } );
+				folder6.addColor( lhcpm, "color").onChange( function(value) { lhcpm.setColor(value); } );
+			}
+
+			function animate() {
+				// Update the elapsed time to later provide to the shaders:
+				var delta = clock.getDelta();
+				tick += delta;
+				if ( tick < 0 ) tick = 0;
+				
+				// Update the material uniforms with the time, to pass on the elapsed time:
+				rhcpe.addTime(delta);
+				rhcpm.addTime(delta);
+				lhcpe.addTime(delta);
+				lhcpm.addTime(delta);
+				y103.addTime(delta);
+				
+				// Tell WebGL to call the 'animate()' function for the next screen refresh:
+				requestAnimationFrame( animate );
+				
+				// Render the scene, and update the stats:
+				renderer.render( scene, camera );
+				//stats.update();
+			}
+		</script>
+	</body>
+</html>
