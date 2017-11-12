@@ -324,6 +324,8 @@
 				folder6.add( lhcpm, "phi", 30, 60, 30).onChange( function(value) { lhcpm.loadNewGeometry(8, 102.0, lhcpm.theta, value); } );
 				//folder6.add( lhcpm, "scale", 0.2, 5.0, 0.05).onChange( function(value) { lhcpm.cvfUniforms.scale.value = value; } );
 				folder6.addColor( lhcpm, "color").onChange( function(value) { lhcpm.setColor(value); } );
+				
+				folder1.open();
 			}
 
 			function animate() {
