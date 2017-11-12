@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>GUTCP - Photon Emission</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+				text-align:center;
+				cursor: pointer;
+			}
+
+			a {
+				color:#0078ff;
+			}
+
+			#info {
+				color: #ffffff;
+				position: absolute;
+				top: 10px;
+				width: 100%;
+			}
+
+			#warning {
+				color: #ff0000;
+			}
+		</style>
+	</head>
+	
+	<body>
+        <div id="info">
+            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Photon Emission</a>
+            <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com"
+            >Dr Randell L Mills</a> - FDTD Simulation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
+        </div>
+
+		<script src="https://threejs.org/build/three.js"></script>
+		<script src="https://threejs.org/examples/js/Detector.js"></script>
+		<script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
+		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
+		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+		<script src="https://threejs.org/examples/js/GPUComputationRenderer.js"></script>
+		<script src="gutcp.js"></script>
+
+		<!--script src="./three.js/build/three.js"></script-->
+		<!--script src="./three.js/examples/js/Detector.js"></script-->
+		<!--script src="./three.js/examples/js/libs/stats.min.js"></script-->
+		<!--script src="./three.js/examples/js/libs/dat.gui.min.js"></script-->
+		<!--script src="./three.js/examples/js/controls/OrbitControls.js"></script-->
+		<!--script src="./gutcp.js"></script-->
+		
+		<!-- Electric Field Compute Shader -->
+		<script id="ComputeShaderElectric" type="x-shader/x-fragment">
+
+			uniform float xDim; 	// X grid dimension 
+			uniform float yDim; 	// Y grid dimension 
+			uniform float zDim; 	// Z grid dimension 
+			
+			uniform float time; 	// Absolute time (since start of WebGL renderer)
+			uniform float epsilon;	// Permittivity 
+			
+			uniform float Ke; 		// Electric field constant coefficient
+			
+			uniform sampler2D pam; 	// Perfectly Absorbing Material or Boundary
+			
+			void main() {
+
+				vec2 uv = gl_FragCoord.xy / resolution.xy;
+				vec4 E  = vec4(0.0, 0.0, 0.0, 0.0);
+				vec4 Ef = vec4(0.0, 0.0, 0.0, 1.0);
+				
+				vec4 Hxp1 = texture2D( textureMagnetic, (gl_FragCoord.xy + vec2( 1.0, 0.0)) / resolution.xy);
+				vec4 Hxm1 = texture2D( textureMagnetic, uv); 
+				
+				vec4 Hyp1 = texture2D( textureMagnetic, (gl_FragCoord.xy + vec2(xDim, 0.0)) / resolution.xy );
+				vec4 Hym1 = texture2D( textureMagnetic, uv); 
+				
+				vec4 Hzp1 = texture2D( textureMagnetic, (gl_FragCoord.xy + vec2( 0.0, 1.0)) / resolution.xy  );
+				vec4 Hzm1 = texture2D( textureMagnetic, uv); 
+				
+				E.x = (Hyp1.z - Hym1.z) - (Hzp1.y - Hzm1.y);
+				E.y = (Hzp1.x - Hzm1.x) - (Hxp1.z - Hxm1.z);
+				E.z = (Hxp1.y - Hxm1.y) - (Hyp1.x - Hym1.x);
+				
+				if((gl_FragCoord.x > ((resolution.x - 1.4) / 2.0)) && (gl_FragCoord.x < ((resolution.x + 1.4) / 2.0)) 
+				&& (gl_FragCoord.y > ((resolution.y - 1.8) / 2.0)) && (gl_FragCoord.y < ((resolution.y + 1.8) / 2.0))) {
+					Ef = vec4(0.0*cos((time+uv.x)*6.0), 50.0*sin((time+uv.x)*36.0), 0.0*sin((time+uv.y)*2.0), 0.0);
+				} else {
+					Ef = (texture2D( textureElectric, uv) + 0.5 * Ke * E) * texture2D( pam, uv ).z;
+				}
+				gl_FragColor = vec4(Ef.xyz, 1.0); 
+				//vec4 PP = texture2D( pam, uv );
+				//gl_FragColor = vec4(PP.xyz, 1.0); 
+			}
+		</script>
+
+		<!-- Magnetic Field Compute Shader -->
+		<script id="ComputeShaderMagnetic" type="x-shader/x-fragment">
+
+			uniform float xDim; 	// X grid dimension 
+			uniform float yDim; 	// Y grid dimension 
+			uniform float zDim; 	// Z grid dimension 
+			
+			uniform float time; 	// Absolute time (since start of WebGL renderer)
+			uniform float mu; 		// Permeability
+			
+			uniform float Kh; 		// Magnetic field constant coefficient
+			
+			uniform sampler2D pam; 	// Perfectly Absorbing Material or Boundary
+			
+			void main() {
+
+				vec2 uv = gl_FragCoord.xy / resolution.xy;
+				vec4 H  = vec4(0.0, 0.0, 0.0, 0.0);
+				vec4 Hf = vec4(0.0, 0.0, 0.0, 1.0);
+			
+				vec4 Exp1 = texture2D( textureElectric, uv); 
+				vec4 Exm1 = texture2D( textureElectric, (gl_FragCoord.xy - vec2(1.0, 0.0)) / resolution.xy );
+			
+				vec4 Eyp1 = texture2D( textureElectric, uv); 
+				vec4 Eym1 = texture2D( textureElectric, (gl_FragCoord.xy - vec2(xDim, 0.0)) / resolution.xy );
+			
+				vec4 Ezp1 = texture2D( textureElectric, uv); 
+				vec4 Ezm1 = texture2D( textureElectric, (gl_FragCoord.xy - vec2(0.0, 1.0)) / resolution.xy );
+			
+				H.x = (Ezp1.y - Ezm1.y) - (Eyp1.z - Eym1.z);
+				H.y = (Exp1.z - Exm1.z) - (Ezp1.x - Ezm1.x);
+				H.z = (Eyp1.x - Eym1.x) - (Exp1.y - Exm1.y);
+			
+				Hf = (texture2D( textureMagnetic, uv) + 0.5 * Kh * H) * texture2D( pam, uv ).z;
+				
+				gl_FragColor = vec4(Hf.xyz, 1.0); 
+				//vec4 PP = texture2D( pam, uv );
+				//gl_FragColor = vec4(PP.xyz, 1.0); 
+			}
+
+		</script>
+
+		<!-- Electric Field Vertex Shader -->
+		<script id="VertexShaderElectricField" type="x-shader/x-vertex">
+
+			// For PI declaration:
+			#include <common>
+
+			uniform sampler2D textureElectric;
+
+			//uniform float cameraConstant;
+			//uniform float density;
+			attribute float info;
+
+			varying vec4 vColor;
+
+			void main() {
+				
+				vec4 mvElectric;
+				if(info >= 0.5) {
+					vec4 electricFieldVector = texture2D( textureElectric, uv );
+					mvElectric = modelViewMatrix * vec4( position.xyz + electricFieldVector.xyz, 1.0 ); 
+					vColor = vec4(1.0, 0.0, 0.0, 1.0); // Red
+				} else {
+					mvElectric = modelViewMatrix * vec4( position.xyz, 1.0 ); 
+					vColor = vec4(1.0, 1.0, 0.0, 1.0); // White
+				}
+				gl_PointSize = 5.0;
+				gl_Position = projectionMatrix * mvElectric;
+			}
+
+		</script>
+
+		<!-- Magnetic Field Vertex Shader -->
+		<script id="VertexShaderMagneticField" type="x-shader/x-vertex">
+
+			// For PI declaration:
+			#include <common>
+
+			uniform sampler2D textureMagnetic;
+			attribute float info;
+
+			varying vec4 vColor;
+
+			void main() {
+
+				vec4 mvMagnetic;
+				if(info >= 0.5) {
+					vec4 magneticFieldVector = texture2D( textureMagnetic, uv );				
+					mvMagnetic = modelViewMatrix * vec4( position.xyz + magneticFieldVector.xyz, 1.0 ); 
+					vColor = vec4(0.0, 0.0, 1.0, 1.0); // Blue
+				} else {
+					mvMagnetic = modelViewMatrix * vec4( position.xyz, 1.0 ); 
+					vColor = vec4(0.0, 1.0, 1.0, 1.0); // White
+				} 
+				gl_PointSize = 5.0;
+				gl_Position = projectionMatrix * mvMagnetic;
+			}
+
+		</script>
+
+		<!-- Electric and Magnetic Fields Fragment Shader -->
+		<script id="FragmentShaderElectromagnetic" type="x-shader/x-fragment">
+
+			varying vec4 vColor;
+
+			void main() {
+
+				gl_FragColor = vColor;
+			}
+		</script>
+
+		<script>
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container, stats;
+			var camera, scene, renderer, geometry, controls;
+			var clock = new THREE.Clock();
+
+			var GRID_WIDTH = 16; 
+			var tick = 0;
+			//var runs = 0;
+			
+			var controller = {
+				//skips: 0,
+				brakes: 1.0
+			}
+
+			class FDTD {
+				constructor (xDim, yDim, zDim, renderer) {
+					// Grid dimensions:
+					this.xDim = xDim;
+					this.yDim = yDim;
+					this.zDim = zDim;
+					this.boundary = 20;
+					this.renderer = renderer;
+					
+					this.zoom = 1.0;
+					this.simCycles = 0;
+					this.simCyclesMax = 0;
+					
+					// Initialise E-H Vector Head and Tail Colours:
+					this.eHeadColor = [1.0, 0.0, 0.0, 1.0]; // Red
+					this.eTailColor = [0.0, 0.0, 0.0, 1.0]; // Blk
+					this.hHeadColor = [0.0, 0.0, 1.0, 1.0]; // Blu
+					this.hTailColor = [0.0, 0.0, 0.0, 1.0]; // Blk
+					
+					this.Ke = 0.05;
+					this.Kh = 0.05;
+					
+					this.scene = 0;
+					
+					this.initComputeRenderer();
+				}
+				
+				// Insert the geometries into the scenegraph's sceneObject:
+				insertScene(sceneObject) {
+					sceneObject.add(this.eLines);
+					sceneObject.add(this.hLines);
+					this.scene = sceneObject;
+				}				
+				
+				setGridZoom( zoom ) {
+					this.zoom = zoom;
+				}
+				
+				restartSimulation() {
+
+					this.textureElectric = this.gpuCompute.createTexture();
+					this.textureMagnetic = this.gpuCompute.createTexture();
+					this.texturePML 	 = this.gpuCompute.createTexture();
+					
+					this.fillTextures( );
+
+					this.gpuCompute.renderTexture( this.textureElectric, this.electricVariable.renderTargets[ 0 ] );
+					this.gpuCompute.renderTexture( this.textureElectric, this.electricVariable.renderTargets[ 1 ] );
+					this.gpuCompute.renderTexture( this.textureMagnetic, this.magneticVariable.renderTargets[ 0 ] );
+					this.gpuCompute.renderTexture( this.textureMagnetic, this.magneticVariable.renderTargets[ 1 ] );
+				}
+
+				initFdtdGrid() {
+
+					// Create the grids: Each point uses 3 floats (for xyz) and 2 point per vector:
+					var ePositions = new Float32Array( this.xDim * this.yDim * this.zDim * 3 * 2);
+					var eUvs = new Float32Array( this.xDim * this.yDim * this.zDim * 2 * 2 );
+					var eBools = new Float32Array( this.xDim * this.yDim * this.zDim * 2);
+				
+					var hPositions = new Float32Array( this.xDim * this.yDim * this.zDim * 3 * 2);
+					var hUvs = new Float32Array( this.xDim * this.yDim * this.zDim * 2 * 2 );
+					var hBools = new Float32Array( this.xDim * this.yDim * this.zDim * 2);
+				
+					var pE = 0;
+					var pH = 0;
+					var pEu = 0;
+					var pHu = 0;
+					var pEb = 0;
+					var pHb = 0;
+				
+					// Put two points in each location, as they will be rendered as lines. Colocate them,
+					// and let the vertex shader relocate the vector's head at each render cycle.
+					// Keep the locations a separation of 1.0 apart, regardles of dimensions, so that 
+					// normalised vector lengths at maximum do not go past the location of adjacents.
+					for(var x=0; x<this.xDim; ++x) {
+						for(var y=0; y<this.yDim; ++y) {
+							for(var z=0; z<this.zDim; ++z) {
+								// First E vertex:
+								ePositions[pE++] = 10.0 * x - 10.0 * this.xDim / 2.0 + 5.0;
+								ePositions[pE++] = 10.0 * y - 10.0 * this.yDim / 2.0 + 5.0;
+								ePositions[pE++] = 10.0 * z - 10.0 * this.zDim / 2.0 + 5.0;
+								eUvs[pEu++] = (y * this.xDim + x) / (this.yDim * this.xDim - 1.0);
+								eUvs[pEu++] = z / (this.zDim - 1.0);
+								eBools[pEb++] = 0.0; // First is the tail
+							
+								// Second E vertex (Same location as first.):
+								ePositions[pE++] = 10.0 * x - 10.0 * this.xDim / 2.0 + 5.0;
+								ePositions[pE++] = 10.0 * y - 10.0 * this.yDim / 2.0 + 5.0; 
+								ePositions[pE++] = 10.0 * z - 10.0 * this.zDim / 2.0 + 5.0;
+								eUvs[pEu++] = (y * this.xDim + x) / (this.yDim * this.xDim - 1.0);
+								eUvs[pEu++] = z / (this.zDim - 1.0);
+								eBools[pEb++] = 1.0; // Second is the head of the vector
+							
+								// First H vertex:
+								hPositions[pH++] = 10.0 * x - 10.0 * this.xDim / 2.0;
+								hPositions[pH++] = 10.0 * y - 10.0 * this.yDim / 2.0;
+								hPositions[pH++] = 10.0 * z - 10.0 * this.zDim / 2.0;
+								hUvs[pHu++] = (y * this.xDim + x) / (this.yDim * this.xDim - 1.0);
+								hUvs[pHu++] = z / (this.zDim - 1.0);
+								hBools[pHb++] = 0.0; // First is the tail
+							
+								// Second H vertex. (Same location as first.):
+								hPositions[pH++] = 10.0 * x - 10.0 * this.xDim / 2.0; 
+								hPositions[pH++] = 10.0 * y - 10.0 * this.yDim / 2.0; // + 0.1;
+								hPositions[pH++] = 10.0 * z - 10.0 * this.zDim / 2.0;
+								hUvs[pHu++] = (y * this.xDim + x) / (this.yDim * this.xDim - 1.0);
+								hUvs[pHu++] = z / (this.zDim - 1.0);
+								hBools[pHb++] = 1.0; // Second is the head of the vector
+							}
+						}
+					}
+				
+					// Now create the geometries:
+					this.eGeometry = new THREE.BufferGeometry();
+					this.hGeometry = new THREE.BufferGeometry();
+					
+					// Add the vertices, uv and info arrays as attributes into the geometry:
+					this.eGeometry.addAttribute( 'position', new THREE.BufferAttribute( ePositions, 3 ) );
+					this.hGeometry.addAttribute( 'position', new THREE.BufferAttribute( hPositions, 3 ) );
+				
+					this.eGeometry.addAttribute( 'uv', new THREE.BufferAttribute( eUvs, 2 ) );
+					this.hGeometry.addAttribute( 'uv', new THREE.BufferAttribute( hUvs, 2 ) );
+				
+					this.eGeometry.addAttribute( 'info', new THREE.BufferAttribute( eBools, 1 ) );
+					this.hGeometry.addAttribute( 'info', new THREE.BufferAttribute( hBools, 1 ) );
+				
+					// Create and initialize the uniforms:
+					this.eUniforms = { 
+						textureElectric : { value : null}, 
+						time : { value : 0.0 }
+					};
+					this.hUniforms = {
+						textureMagnetic : { value : null}, 
+						time : { value : 0.0 }
+					};
+
+					// Create and initialise the ShaderMaterials:
+					this.eMaterial = new THREE.ShaderMaterial( {
+						uniforms:       this.eUniforms,
+						vertexShader:   document.getElementById( 'VertexShaderElectricField' ).textContent,
+						fragmentShader: document.getElementById( 'FragmentShaderElectromagnetic' ).textContent
+					} );
+					this.eMaterial.extensions.drawBuffers = true;
+				
+					this.hMaterial = new THREE.ShaderMaterial( {
+						uniforms:       this.hUniforms,
+						vertexShader:   document.getElementById( 'VertexShaderMagneticField' ).textContent,
+						fragmentShader: document.getElementById( 'FragmentShaderElectromagnetic' ).textContent
+					} );
+					this.hMaterial.extensions.drawBuffers = true;
+
+					// Create the Points geometry and load the into the scene:
+					this.eLines = new THREE.LineSegments( this.eGeometry, this.eMaterial );
+					this.eLines.matrixAutoUpdate = false;
+					this.eLines.updateMatrix();
+				
+					this.hLines = new THREE.LineSegments( this.hGeometry, this.hMaterial );
+					this.hLines.matrixAutoUpdate = false;
+					this.hLines.updateMatrix();
+				}
+
+				initComputeRenderer() {
+				
+					this.gpuCompute = new GPUComputationRenderer( this.xDim*this.yDim, this.zDim, this.renderer );
+
+					this.textureElectric = this.gpuCompute.createTexture();
+					this.textureMagnetic = this.gpuCompute.createTexture();
+					this.texturePML 	 = this.gpuCompute.createTexture();
+					
+					this.fillTextures();
+				}
+
+				fillTextures( ) {
+					var eArray = this.textureElectric.image.data;
+					for ( var k = 0, kl = eArray.length; k < kl; k += 4 ) {
+						// Fill in texture values
+						eArray[ k + 0 ] = 0.0;
+						eArray[ k + 1 ] = 0.0;
+						eArray[ k + 2 ] = 0.0;
+						eArray[ k + 3 ] = 1.0; // w = sqrt( x**2 + y**2 + z**2 ); i.e. Magnitude of vector.
+					}
+
+					var hArray = this.textureMagnetic.image.data;
+					for ( var k = 0, kl = hArray.length; k < kl; k += 4 ) {
+						hArray[ k + 0 ] = 0.0;
+						hArray[ k + 1 ] = 0.0;
+						hArray[ k + 2 ] = 0.0;
+						hArray[ k + 3 ] = 1.0; // w = sqrt( x**2 + y**2 + z**2 ); i.e. Magnitude of vector.
+					}
+					
+					var pArray = this.texturePML.image.data;
+					for ( var i = 0, k = 0, kl = pArray.length; k < kl; ++i, k += 4 ) {
+						var x = i % this.xDim;
+						var y = (i % (this.xDim * this.yDim)) / this.xDim;
+						var z = i / (this.xDim * this.yDim);
+						
+						if(x < this.boundary) {
+							pArray[ k + 0 ] = (1.0/this.boundary) * x;
+						} else 
+						if(x >= (this.xDim - this.boundary)) {
+							pArray[ k + 0 ] = (1.0/this.boundary) * (this.xDim - x - 1);
+						} else {
+							pArray[ k + 0 ] = 1.0;
+						}
+						
+						if(y < this.boundary) {
+							pArray[ k + 1 ] = (1.0/this.boundary) * y;
+						} else 
+						if(y >= (this.yDim - this.boundary)) {
+							pArray[ k + 1 ] = (1.0/this.boundary) * (this.yDim - y - 1);
+						} else {
+							pArray[ k + 1 ] = 1.0;
+						}
+						
+						if(z < this.boundary) {
+							pArray[ k + 2 ] = (1.0/this.boundary) * z;
+						} else 
+						if(z >= (this.zDim - this.boundary)) {
+							pArray[ k + 2 ] = (1.0/this.boundary) * (this.zDim - z - 1);
+						} else {
+							pArray[ k + 2 ] = 1.0;
+						}
+						
+						//pArray[ k + 0 ] = 0.0; 
+						//pArray[ k + 1 ] = 0.0; 
+						//pArray[ k + 2 ] = 0.0; 
+						//pArray[ k + 3 ] = 1.0; 
+						//pArray[ k + 3 ] = Math.sqrt( pArray[k]**2 + pArray[k+1]**2 + pArray[k+2]**2 ); 
+						pArray[ k + 3 ] = (pArray[k] < pArray[k+1]) ? pArray[k] : pArray[k+1]; 
+						pArray[ k + 3 ] = (pArray[k+2] < pArray[k+3]) ? pArray[k+2] : pArray[k+3] ;
+					}
+					
+					this.magneticVariable = this.gpuCompute.addVariable( "textureMagnetic", 
+						document.getElementById( 'ComputeShaderMagnetic' ).textContent, this.textureMagnetic );
+					this.electricVariable = this.gpuCompute.addVariable( "textureElectric", 
+						document.getElementById( 'ComputeShaderElectric' ).textContent, this.textureElectric );
+
+					this.gpuCompute.setVariableDependencies( this.magneticVariable, [ this.electricVariable, this.magneticVariable ] );
+					this.gpuCompute.setVariableDependencies( this.electricVariable, [ this.electricVariable, this.magneticVariable ] );
+
+					this.magneticUniforms = this.magneticVariable.material.uniforms;
+					this.electricUniforms = this.electricVariable.material.uniforms;
+
+					this.magneticUniforms.mu   = { value: 0.0 };
+					this.magneticUniforms.time = { value: 0.0 };
+					this.magneticUniforms.xDim = { value: this.xDim };
+					this.magneticUniforms.yDim = { value: this.yDim };
+					this.magneticUniforms.zDim = { value: this.zDim };
+					this.magneticUniforms.Kh   = { value: this.Kh };
+					//this.magneticUniforms.Ke   = { value: this.Ke };
+					this.magneticUniforms.pam  = { value: this.texturePML };
+
+					this.electricUniforms.epsilon = { value: 0.0 };
+					this.electricUniforms.time = { value: 0.0 };
+					this.electricUniforms.xDim = { value: this.xDim };
+					this.electricUniforms.yDim = { value: this.yDim };
+					this.electricUniforms.zDim = { value: this.zDim };
+					this.electricUniforms.Ke   = { value: this.Ke };
+					//this.electricUniforms.Kh   = { value: this.Kh };
+					this.electricUniforms.pam  = { value: this.texturePML };
+					
+					var error = this.gpuCompute.init();
+					if ( error !== null ) {
+						console.error( error );
+					}
+				}
+				
+				update(time) {
+					// Let the GPU processor do update the textures:
+					this.gpuCompute.compute();
+					
+					// Now assign the correct textures so that they can be rendered. Note that the GPU processor
+					// is double buffered.
+					this.hUniforms.textureMagnetic.value = this.gpuCompute.getCurrentRenderTarget( this.magneticVariable ).texture;
+					this.eUniforms.textureElectric.value = this.gpuCompute.getCurrentRenderTarget( this.electricVariable ).texture;
+					
+					this.electricUniforms.time.value = time;
+					this.magneticUniforms.time.value = time;
+					this.electricUniforms.Ke.value = this.Ke;
+					this.magneticUniforms.Kh.value = this.Kh;
+				}
+				
+				resetSimulation() {
+					this.simCycles = 0;
+					this.fillTextures();
+					console.log("reset sim!");
+				}
+			}
+
+			var fdtd;
+
+			init();
+			animate();
+			
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
+				camera.position.y = 120;
+				camera.position.z = 400;
+
+				scene = new THREE.Scene();
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+				
+				grid = new Grid();
+				grid.insertScene(scene);
+				
+				// Create the FDTD grid, and insert it into the scene:
+				fdtd = new FDTD(81, 81, 81 , renderer);
+				fdtd.initFdtdGrid();
+				fdtd.insertScene(scene);
+				initGUI();
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+
+			function initGUI() {
+
+				var gui = new dat.GUI();
+
+				var folder1 = gui.addFolder( 'FTDT Grid Controls' );
+
+				//folder1.add( fdtd, "gridScale", 0.2, 10.0, 0.2 ).onChange( function(value) { fdtd.setGridScale(value); } );
+				folder1.add( controller, "brakes", 1.0, 20.0, 0.5 );
+				folder1.add( fdtd, "Ke", 0.01, 0.4, 0.01 ).onChange( function(value) { fdtd.Ke = value; fdtd.Kh = value; } );;
+				folder1.add( fdtd, "Kh", 0.01, 0.4, 0.01 );
+
+				var folder2 = gui.addFolder( 'Field Controls' );
+				folder2.add( fdtd, "simCyclesMax", 0, 100, 5);
+
+				//folder2.addColor( fdtd, "eHeadColor").onChange( function(value) { fdtd.setEHeadColor(value); } );
+				//folder2.addColor( fdtd, "eTailColor").onChange( function(value) { fdtd.setETailColor(value); } );
+				//folder2.addColor( fdtd, "hHeadColor").onChange( function(value) { fdtd.setHHeadColor(value); } );
+				//folder2.addColor( fdtd, "hTailColor").onChange( function(value) { fdtd.setHTailColor(value); } );
+
+				//var buttonRestart = {
+				//	restartSimulation: function() { restartSimulation(); }
+				//};
+
+				folder2.add( fdtd, 'resetSimulation' );
+
+				folder1.open();
+				folder2.open();
+			}
+
+			function getCameraConstant( camera ) {
+
+				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+			}
+
+			function animate() {
+				var delta = clock.getDelta();
+				tick += delta / controller.brakes;
+				if ( tick < 0 ) tick = 0;
+				
+				requestAnimationFrame( animate );
+				
+				//if(fdtd.simCycles < fdtd.simCyclesMax) {
+					fdtd.update(tick);
+					fdtd.simCycles++;
+				//}
+				
+				renderer.render( scene, camera );
+
+				stats.update();
+			}
+
+		</script>
+	</body>
+</html>
