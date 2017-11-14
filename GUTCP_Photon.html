@@ -88,6 +88,7 @@
                     waveSpeed: 			0.50,
 					wavesPerRing: 		1.0,
 					cutoff: 			0.25,
+                    animate: 			true,
                     rotate: 			false,
                     enableBlkSphere: 	false,
                     background: 		[0, 0, 0]
@@ -212,6 +213,12 @@
 					lhcpe.cvfUniforms.cutoff.value = value;
 					lhcpm.cvfUniforms.cutoff.value = value;
                 } );
+				folder1.add( effectController, "animate" ).onChange( function(value) {                 	
+					rhcpe.setAnimate(value);
+                	rhcpm.setAnimate(value);
+                	lhcpe.setAnimate(value);
+                	lhcpm.setAnimate(value);
+				} );
 				folder1.add( effectController, "rotate" ).onChange( function(value) {                 	
 					rhcpe.setRotate(value);
                 	rhcpm.setRotate(value);
@@ -232,7 +239,7 @@
 				// Add a folder for the rhcpe parameters:
 				var folder2 = gui.addFolder( 'Photon RHCP Electric (Eq V.4)' );
                 folder2.add( rhcpe, "visibility" ).onChange( function(value) { rhcpe.setVisibility(value); } );
-				folder2.add( rhcpe, "animate" ).onChange( function(value) { rhcpe.setAnimate(value); } );
+				//folder2.add( rhcpe, "animate" ).onChange( function(value) { rhcpe.setAnimate(value); } );
 				//folder2.add( rhcpe, "swapAnimDir" ).onChange( function(value) { rhcpe.swapAnimationDirection(value); } );
 				folder2.add( rhcpe, "theta", 60, 180, 30).onChange( function(value) { rhcpe.loadNewGeometry(5, 100.0, value, rhcpe.phi); } );
 				folder2.add( rhcpe, "phi", 30, 60, 30).onChange( function(value) { rhcpe.loadNewGeometry(5, 100.0, rhcpe.theta, value); } );
@@ -245,7 +252,7 @@
 				// Add a folder for the rhcpm parameters:
 				var folder3 = gui.addFolder( 'Photon RHCP Magnetic (Eq V.4)' );
                 folder3.add( rhcpm, "visibility" ).onChange( function(value) { rhcpm.setVisibility(value); } );
-				folder3.add( rhcpm, "animate" ).onChange( function(value) { rhcpm.setAnimate(value); } );
+				//folder3.add( rhcpm, "animate" ).onChange( function(value) { rhcpm.setAnimate(value); } );
 				//folder3.add( rhcpm, "swapAnimDir" ).onChange( function(value) { rhcpm.swapAnimationDirection(value); } );
 				folder3.add( rhcpm, "theta", 60, 180, 30).onChange( function(value) { rhcpm.loadNewGeometry(6, 102.0, value, rhcpm.phi); } );
 				folder3.add( rhcpm, "phi", 30, 60, 30).onChange( function(value) { rhcpm.loadNewGeometry(6, 102.0, rhcpm.theta, value); } );
@@ -255,7 +262,7 @@
 				// Add a folder for the Y00 Eq 1.103 parameters:
                 var folder4 = gui.addFolder( 'Photon LHCP Electric (Eq V.8)' );
                 folder4.add( lhcpe, "visibility" ).onChange( function(value) { lhcpe.setVisibility(value); } );
-                folder4.add( lhcpe, "animate" ).onChange( function(value) { lhcpe.setAnimate(value); } );
+                //folder4.add( lhcpe, "animate" ).onChange( function(value) { lhcpe.setAnimate(value); } );
 				//folder4.add( lhcpe, "swapAnimDir" ).onChange( function(value) { lhcpe.swapAnimationDirection(value); } );
 				folder4.add( lhcpe, "theta", 60, 180, 30).onChange( function(value) { lhcpe.loadNewGeometry(7, 100.0, value, lhcpe.phi); } );
 				folder4.add( lhcpe, "phi", 30, 60, 30).onChange( function(value) { lhcpe.loadNewGeometry(7, 100.0, lhcpe.theta, value); } );
@@ -265,7 +272,7 @@
 				// Add a folder for the Y00 Eq 1.109 parameters:
                 var folder5 = gui.addFolder( 'Photon LHCP Magnetic (Eq V.8)' );
                 folder5.add( lhcpm, "visibility" ).onChange( function(value) { lhcpm.setVisibility(value); } );
-                folder5.add( lhcpm, "animate" ).onChange( function(value) { lhcpm.setAnimate(value); } );
+                //folder5.add( lhcpm, "animate" ).onChange( function(value) { lhcpm.setAnimate(value); } );
 				//folder5.add( lhcpm, "swapAnimDir" ).onChange( function(value) { lhcpm.swapAnimationDirection(value); } );
 				folder5.add( lhcpm, "theta", 60, 180, 30).onChange( function(value) { lhcpm.loadNewGeometry(8, 102.0, value, lhcpm.phi); } );
 				folder5.add( lhcpm, "phi", 30, 60, 30).onChange( function(value) { lhcpm.loadNewGeometry(8, 102.0, lhcpm.theta, value); } );
