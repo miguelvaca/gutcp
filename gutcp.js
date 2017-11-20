@@ -262,7 +262,7 @@ var  photonAbsorptionEmissionVertexShader =
 	"   	                         (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z-sin_new_angle*rotation_axis.x, \n" +
 	"   	                         cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.z,2.0) );  					\n" + 
 	"   	newPosition = rotation_m * newPosition; \n" + 
-	" 		newPosition.z += (zOffset > 0.0) ? (excitedElectronRadius + radius) : -(excitedElectronRadius + radius); 										\n" + 
+	" 		newPosition.z += (zOffset > 0.0) ? (excitedElectronRadius + radius) : -(excitedElectronRadius + radius); 	\n" + 
 	"   	cos_new_angle = cos(delta_angle > 0.0 ? delta_angle : electron_angle); 										\n" + 
 	"   	sin_new_angle = sin(delta_angle > 0.0 ? delta_angle : electron_angle); 										\n" + 
 	"   	rotation_m = mat3( cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.x,2.0), 								\n" + 
@@ -323,7 +323,7 @@ var gridVertexShader =
 
 	"void main() { 					\n" + 
 	"	//vColor = vec4( gridContrast, gridContrast, gridContrast, 1.0 ); \n" + 
-	"		vColor = vec4( (background[0]<0.5) ? gridContrast*(1.0-background[0])+background[0] : background[0] - gridContrast*background[0], " + 
+	"	vColor = vec4( (background[0]<0.5) ? gridContrast*(1.0-background[0])+background[0] : background[0] - gridContrast*background[0], " + 
 	" 			(background[1]<0.5) ? gridContrast*(1.0-background[1])+background[1] : background[1] - gridContrast*background[1], " + 
 	" 			(background[2]<0.5) ? gridContrast*(1.0-background[2])+background[2] : background[2] - gridContrast*background[2], 1.0 ); \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 				\n" + 
@@ -501,7 +501,7 @@ class CVF {
 		return vertex;
 	}
 	
-	// Return an individual CVF vertex:
+	// Return an individual 3-element CVF vertex:
 	// mode    = 1:RH, 2:LH
 	// field   = 1:Electric, 2:Magnetic
 	// radius  = CVF radius (typically 100.0)
@@ -557,22 +557,6 @@ class CVF {
 		vertex[ 2 ] = cvf[0]*cvfRot[6+0] + cvf[1]*cvfRot[6+1] + cvf[2]*cvfRot[6+2];
 		
 		return vertex;
-		
-		// Rotation of the photon fields:
-		var vertex2 = [];
-		if(mode == 1) {
-			// Now rotate RH about (-1, 1, 0) axis by -90 degrees, so that it can move as a TEM wave in the +z direction:
-			// [Or equivalently, about (1, -1, 0) by 90 degrees.]
-			vertex2[ 0 ] =    0.5*vertex[0] -   0.5*vertex[1] - 0.707*vertex[2];
-			vertex2[ 1 ] =   -0.5*vertex[0] +   0.5*vertex[1] - 0.707*vertex[2]; 
-			vertex2[ 2 ] =  0.707*vertex[0] + 0.707*vertex[1] + 0.0;
-		} else {
-			// Now rotate LH about (1, 1, 0) axis by +90 degrees, so that it can move as a TEM wave in the +z direction:
-			vertex2[ 0 ] =    0.5*vertex[0] +   0.5*vertex[1] + 0.707*vertex[2];
-			vertex2[ 1 ] =    0.5*vertex[0] +   0.5*vertex[1] - 0.707*vertex[2]; 
-			vertex2[ 2 ] = -0.707*vertex[0] + 0.707*vertex[1] + 0.0;
-		}
-		return vertex2;
 	}
 
 	// Returns a two-element array containing geometry and uv for GUTCP Current-Vector Fields.
