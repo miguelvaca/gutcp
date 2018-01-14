@@ -144,6 +144,7 @@ var photonVertexShader =
 	"uniform vec4  color; 			\n" + 
 	"uniform vec4  background; 		\n" + 
 	"varying vec4  vColor; 			\n" + 
+	"const float PI = 3.141592653589793; \n" + 
 	"\n" 								+
 	"void main() { 					\n" + 
 	"   mat3  rotation_rhcp = mat3( 0.5, -0.5, 0.707, -0.5, 0.5, 0.707, -0.707, -0.707, 0.0); 		\n" + 
@@ -186,7 +187,63 @@ var photonVertexShader =
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
-// var photonAbsorptionVertexShader
+var neutrinoVertexShader = 
+	"uniform float wavesPerRing; 	\n" + 
+	"uniform float waveSpeed; 		\n" + 
+	"uniform float uTime; 			\n" + 
+	"uniform float radius; 			\n" + 
+	"uniform float scale; 			\n" + 
+	"uniform float cutoff; 			\n" + 
+	"uniform float zOffset; 		\n" + 
+	"uniform bool  animate; 		\n" + 
+	"uniform bool  swapAnimDir; 	\n" + 
+	"uniform bool  rotate; 			\n" + 
+	"uniform bool  rhcp; 			\n" + 
+	"uniform vec4  color; 			\n" + 
+	"uniform vec4  background; 		\n" + 
+	"varying vec4  vColor; 			\n" + 
+	"const float PI = 3.141592653589793; \n" + 
+	"\n" 								+
+	"void main() { 					\n" + 
+	"   mat3  rotation_rhcp = mat3( 0.5, -0.5, 0.707, -0.5, 0.5, 0.707, -0.707, -0.707, 0.0); 		\n" + 
+	"   mat3  rotation_lhcp = mat3( 0.5, 0.5, -0.707, 0.5, 0.5, 0.707, 0.707, -0.707, 0.0); 		\n" + 
+	"	vec3 newPosition = position.xyz; \n" + 
+	"	if(rotate) { 				\n" + 
+	"		if(rhcp) { 				\n" + 
+	"			newPosition = rotation_rhcp * position.xyz; \n" + 
+	"		} else { 				\n" + 
+	"			newPosition = rotation_lhcp * position.xyz; \n" + 
+	"		} 						\n" + 
+	"	} else { 					\n" + 
+	"		newPosition = position.xyz; \n" + 
+	"	} \n" + 
+	"	float bright = pow(cos(mod(uTime + uv.x, 1.0) * 2.0 * PI) , 2.0); 			\n" + 
+	"	if(animate) { 				\n" + 
+	"		float shift = mod((uTime + uv.x), 1.0); 														\n" +
+	"		if(shift <= cutoff) { \n" + 
+	"			vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	\n" + 
+	"		} else { \n" + 
+	"			vColor = vec4( 0.2*color[0]+0.8*background[0], 0.2*color[1]+0.8*background[1], 0.2*color[2]+0.8*background[2], color[3] );	\n" + 
+	"		}  \n" + 
+	"		newPosition.z = newPosition.z - shift * 2.0 * radius;	\n" + 
+	"	} else { 																							\n" + 
+	"		float shift = mod((uTime + uv.x), 1.0); 														\n" +
+	"		if(shift <= cutoff) { \n" + 
+	"			//vColor = vec4( (1.0-bright)*color[0], (1.0-bright)*color[1], (1.0-bright)*color[2], color[3] );	\n" + 
+	"			vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	\n" + 
+	"		} else { \n" + 
+	"			vColor = vec4( 0.0, 0.0, 0.0, 0.0 );	\n" + 
+	"			newPosition = vec3( 0.0, 0.0, 0.0 );	\n" + 
+	"		} 																								\n" + 
+	"	} 																									\n" + 
+	"	\n" 																									+	
+	"	newPosition *= scale; 		\n" + 
+	"	newPosition.z += zOffset; 	\n" + 
+	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
+	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
+	"} \n";
+
 
 var  photonAbsorptionEmissionVertexShader = 
 	"uniform float wavesPerRing; 	\n" + 
@@ -367,10 +424,18 @@ var movingGridVertexShader =
 
 
 // Geometry object based on GUTCP equations, selected using "mode" variable:
-//     BECVF (Eq 1.84)  : mode == 1 
-//     OCVF  (Eq 1.95)  : mode == 2 
-// Y00 BECVF (Eq 1.103) : mode == 3
-// Y00 OCVF  (Eq 1.109) : mode == 4
+//       BECVF (Eq 1.84)   : mode == 1 
+//       OCVF  (Eq 1.95)   : mode == 2 
+// Y00   BECVF (Eq 1.103)  : mode == 3
+// Y00   OCVF  (Eq 1.109)  : mode == 4
+// RHCP  E Photon (Eq V.4) : mode == 5
+// RHCP  H Photon (Eq V.4) : mode == 6
+// LHCP  E Photon (Eq V.8) : mode == 7
+// LHCP  H Photon (Eq V.8) : mode == 8
+// RHC2P E Neutrino (Eq 39.15) : mode == 14
+// RHC2P H Neutrino (Eq 39.15) : mode == 15
+// LHC2P E Neutrino (Eq 39.16) : mode == 16
+// LHC2P H Neutrino (Eq 39.16) : mode == 17
 class CVF {
 	// Return an individual CVF vertex:
 	// mode    = 1:BECVF, 2:OCVF
@@ -701,7 +766,7 @@ class CVF {
 		this.scene = 0;
 		// Variable handles for dat.gui to manipulate:
 		this.color = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
-		this.animate = true;
+		this.animate = false;
 		this.swapAnimDir = false;
 		this.visibility = true;
 		this.scale = 1.0;
@@ -827,6 +892,26 @@ class CVF {
 			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 
 			this.cvfUniforms.photonRadius = {value:100.0};
 			this.cvfUniforms.rhcp.value = false;
+		} else 
+		if(mode == 14) {
+			cvfGeo = CVF.createPhotonGeometry (1, 1, radius, THETA, PHI);
+			vertex_shader = neutrinoVertexShader;
+			this.cvfUniforms.rhcp.value = true;
+		} else 
+		if(mode == 15) {
+			cvfGeo = CVF.createPhotonGeometry (1, 2, radius, THETA, PHI);
+			vertex_shader = neutrinoVertexShader;
+			this.cvfUniforms.rhcp.value = true;
+		} else 
+		if(mode == 16) {
+			cvfGeo = CVF.createPhotonGeometry (2, 1, radius, THETA, PHI);
+			vertex_shader = neutrinoVertexShader;
+			this.cvfUniforms.rhcp.value = false;
+		} else 
+		if(mode == 17) {
+			cvfGeo = CVF.createPhotonGeometry (2, 2, radius, THETA, PHI);
+			vertex_shader = neutrinoVertexShader;
+			this.cvfUniforms.rhcp.value = false;
 		} else { // ERROR condition!!!
 			cvfGeo = CVF.createCvfGeometry (1, radius, THETA, PHI);
 		} 
@@ -914,6 +999,11 @@ class CVF {
 	
 	swapAnimationDirection(value) {
 		this.cvfUniforms.swapAnimDir.value = value;
+	}
+	
+	setCutoff( value ) {
+		this.cutoff = value;
+		this.cvfUniforms.cutoff.value = value;
 	}
 }
 

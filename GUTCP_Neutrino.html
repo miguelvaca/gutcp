@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-	<!-- @file   : GUTCP_Photon.html		-->
+	<!-- @file   : GUTCP_Neutrino.html		-->
 	<!-- @author : J Miguel Vaca 			-->
-	<!-- @remark : This webpage uses WebGL to visualise Dr Randell Mill's Photon E&M Vector Fields as defined in -->
+	<!-- @remark : This webpage uses WebGL to visualise Dr Randell Mill's Neutrino Vector Fields as defined in -->
 	<!--         : Appendix V of his book The Grand Unified Theory of Classical Physics.  -->
 	<head>
-		<title>GUTCP Photon Field Visualisations</title>
+		<title>GUTCP Neutrino Field Visualisations</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<link type="text/css" href="css/base.css" rel="stylesheet"/>
@@ -18,7 +18,7 @@
 	</head>
 	<body>
         <div id="info">
-            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Appendix V - Photon Electric and Magnetic Fields</a>
+            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Chapter 39 - Neutrino Electric and Magnetic Fields</a>
             <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
         </div>
 
@@ -67,7 +67,7 @@
 				effectController = {
                     waveSpeed: 			0.50,
 					wavesPerRing: 		1.0,
-					cutoff: 			0.25,
+					cutoff: 			0.50,
                     animate: 			false,
                     rotate: 			false,
                     enableBlkSphere: 	false,
@@ -108,36 +108,40 @@
 				// visualisations are 100. It's smaller so as not to interfere with the geometry of the vis.
                 init_BlackSphere();
 				
-				// Create the rhcpe visualisation and insert it into the scene:
-				rhcpe = new CVF(5, 100.0, 60, 30);
+				// Create the rhc2pe visualisation and insert it into the scene:
+				rhcpe = new CVF(14, 100.0, 60, 30);
 				rhcpe.setColor([255, 0, 0]);
 				rhcpe.setBackground(effectController.background);
 				rhcpe.setSpeed(effectController.waveSpeed); 
+				rhcpe.setCutoff(effectController.cutoff); 
 				rhcpe.setVisibility(true);
 				rhcpe.insertScene(scene);
 				
-				// Create the rhcpm visualisation and insert it into the scene:
-				rhcpm = new CVF(6, 102.0, 60, 30);
+				// Create the rhc2pm visualisation and insert it into the scene:
+				rhcpm = new CVF(15, 102.0, 60, 30);
 				rhcpm.setColor([0, 0, 255]);
 				rhcpm.setBackground(effectController.background);
 				rhcpm.setSpeed(effectController.waveSpeed); 
+				rhcpm.setCutoff(effectController.cutoff); 
 				rhcpm.setVisibility(true);
 				rhcpm.insertScene(scene);
 				
-				// Create the lhcpe visualisation geometry and insert it into the scene:
-				lhcpe = new CVF(7, 100.0, 60, 30);
+				// Create the lhc2pe visualisation geometry and insert it into the scene:
+				lhcpe = new CVF(16, 100.0, 60, 30);
 				lhcpe.setColor([255, 0, 0]);
 				lhcpe.setBackground(effectController.background);
 				lhcpe.setSpeed(effectController.waveSpeed); 
-				lhcpe.setVisibility(true);
+				lhcpe.setCutoff(effectController.cutoff); 
+				lhcpe.setVisibility(false);
 				lhcpe.insertScene(scene);
 				
-				// Create the lhcpm visualisation geometry and insert it into the scene:
-				lhcpm = new CVF(8, 102.0, 60, 30);
+				// Create the lhc2pm visualisation geometry and insert it into the scene:
+				lhcpm = new CVF(17, 102.0, 60, 30);
 				lhcpm.setColor([0, 0, 255]);
 				lhcpm.setBackground(effectController.background);
 				lhcpm.setSpeed(effectController.waveSpeed); 
-				lhcpm.setVisibility(true);
+				lhcpm.setCutoff(effectController.cutoff); 
+				lhcpm.setVisibility(false);
 				lhcpm.insertScene(scene);
 				
 				// Add all the controls for the various visualisations
@@ -181,24 +185,12 @@
 					lhcpm.setSpeed(value); 
 					grid.setSpeed(value);
                 } );
-				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( function(value) { 
-                	rhcpe.cvfUniforms.wavesPerRing.value = value; 
-                	rhcpm.cvfUniforms.wavesPerRing.value = value;
-					lhcpe.cvfUniforms.wavesPerRing.value = value;
-					lhcpm.cvfUniforms.wavesPerRing.value = value;
-                } );
 				folder1.add( effectController, "cutoff", 0.0, 1.0, 0.01 ).onChange( function(value) { 
-                	rhcpe.cvfUniforms.cutoff.value = value; 
-                	rhcpm.cvfUniforms.cutoff.value = value;
-					lhcpe.cvfUniforms.cutoff.value = value;
-					lhcpm.cvfUniforms.cutoff.value = value;
+                	rhcpe.setCutoff(value); 
+                	rhcpm.setCutoff(value);
+					lhcpe.setCutoff(value);
+					lhcpm.setCutoff(value);
                 } );
-				folder1.add( effectController, "animate" ).onChange( function(value) {                 	
-					rhcpe.setAnimate(value);
-                	rhcpm.setAnimate(value);
-                	lhcpe.setAnimate(value);
-                	lhcpm.setAnimate(value);
-				} );
 				folder1.add( effectController, "rotate" ).onChange( function(value) {                 	
 					rhcpe.setRotate(value);
                 	rhcpm.setRotate(value);
@@ -206,7 +198,6 @@
                 	lhcpm.setRotate(value);
 				} );
 				folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
-                //folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
 				folder1.addColor( effectController, "background").onChange( function(value) { 
 					scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
                 	rhcpe.setBackground(value);
@@ -217,36 +208,34 @@
                 } );
 
 				// Add a folder for the rhcpe parameters:
-				var folder2 = gui.addFolder( 'Photon RHCP Electric (Eq V.4)' );
+				var folder2 = gui.addFolder( 'Neutrino RHC2P Electric (Eq 39.15)' );
                 folder2.add( rhcpe, "visibility" ).onChange( function(value) { rhcpe.setVisibility(value); } );
-				folder2.add( rhcpe, "theta", 60, 180, 30).onChange( function(value) { rhcpe.loadNewGeometry(5, 100.0, value, rhcpe.phi); } );
-				folder2.add( rhcpe, "phi", 30, 60, 30).onChange( function(value) { rhcpe.loadNewGeometry(5, 100.0, rhcpe.theta, value); } );
-				folder2.add( rhcpe, "scale", 0.2, 5.0, 0.05).onChange( function(value) { 
-					rhcpe.cvfUniforms.scale.value = value; 
-				} );
+				folder2.add( rhcpe, "theta", 60, 180, 30).onChange( function(value) { rhcpe.loadNewGeometry(14, 100.0, value, rhcpe.phi); } );
+				folder2.add( rhcpe, "phi", 30, 60, 30).onChange( function(value) { rhcpe.loadNewGeometry(14, 100.0, rhcpe.theta, value); } );
+				folder2.add( rhcpe, "scale", 0.2, 5.0, 0.05).onChange( function(value) { rhcpe.cvfUniforms.scale.value = value; } );
 				folder2.addColor( rhcpe, "color").onChange( function(value) { rhcpe.setColor(value); } );
 
 				// Add a folder for the rhcpm parameters:
-				var folder3 = gui.addFolder( 'Photon RHCP Magnetic (Eq V.4)' );
+				var folder3 = gui.addFolder( 'Neutrino RHC2P Magnetic (Eq 39.15)' );
                 folder3.add( rhcpm, "visibility" ).onChange( function(value) { rhcpm.setVisibility(value); } );
-				folder3.add( rhcpm, "theta", 60, 180, 30).onChange( function(value) { rhcpm.loadNewGeometry(6, 102.0, value, rhcpm.phi); } );
-				folder3.add( rhcpm, "phi", 30, 60, 30).onChange( function(value) { rhcpm.loadNewGeometry(6, 102.0, rhcpm.theta, value); } );
+				folder3.add( rhcpm, "theta", 60, 180, 30).onChange( function(value) { rhcpm.loadNewGeometry(15, 102.0, value, rhcpm.phi); } );
+				folder3.add( rhcpm, "phi", 30, 60, 30).onChange( function(value) { rhcpm.loadNewGeometry(15, 102.0, rhcpm.theta, value); } );
 				folder3.add( rhcpm, "scale", 0.2, 5.0, 0.05).onChange( function(value) { rhcpm.cvfUniforms.scale.value = value; } );
 				folder3.addColor( rhcpm, "color").onChange( function(value) { rhcpm.setColor(value); } );
 
 				// Add a folder for the Y00 Eq 1.103 parameters:
-                var folder4 = gui.addFolder( 'Photon LHCP Electric (Eq V.8)' );
+                var folder4 = gui.addFolder( 'Neutrino LHC2P Electric (Eq 39.16)' );
                 folder4.add( lhcpe, "visibility" ).onChange( function(value) { lhcpe.setVisibility(value); } );
-				folder4.add( lhcpe, "theta", 60, 180, 30).onChange( function(value) { lhcpe.loadNewGeometry(7, 100.0, value, lhcpe.phi); } );
-				folder4.add( lhcpe, "phi", 30, 60, 30).onChange( function(value) { lhcpe.loadNewGeometry(7, 100.0, lhcpe.theta, value); } );
+				folder4.add( lhcpe, "theta", 60, 180, 30).onChange( function(value) { lhcpe.loadNewGeometry(16, 100.0, value, lhcpe.phi); } );
+				folder4.add( lhcpe, "phi", 30, 60, 30).onChange( function(value) { lhcpe.loadNewGeometry(16, 100.0, lhcpe.theta, value); } );
 				folder4.add( lhcpe, "scale", 0.2, 5.0, 0.05).onChange( function(value) { lhcpe.cvfUniforms.scale.value = value; } );
 				folder4.addColor( lhcpe, "color").onChange( function(value) { lhcpe.setColor(value); } );
 
 				// Add a folder for the Y00 Eq 1.109 parameters:
-                var folder5 = gui.addFolder( 'Photon LHCP Magnetic (Eq V.8)' );
+                var folder5 = gui.addFolder( 'Neutrino LHC2P Magnetic (Eq 39.16)' );
                 folder5.add( lhcpm, "visibility" ).onChange( function(value) { lhcpm.setVisibility(value); } );
-				folder5.add( lhcpm, "theta", 60, 180, 30).onChange( function(value) { lhcpm.loadNewGeometry(8, 102.0, value, lhcpm.phi); } );
-				folder5.add( lhcpm, "phi", 30, 60, 30).onChange( function(value) { lhcpm.loadNewGeometry(8, 102.0, lhcpm.theta, value); } );
+				folder5.add( lhcpm, "theta", 60, 180, 30).onChange( function(value) { lhcpm.loadNewGeometry(17, 102.0, value, lhcpm.phi); } );
+				folder5.add( lhcpm, "phi", 30, 60, 30).onChange( function(value) { lhcpm.loadNewGeometry(17, 102.0, lhcpm.theta, value); } );
 				folder5.add( lhcpm, "scale", 0.2, 5.0, 0.05).onChange( function(value) { lhcpm.cvfUniforms.scale.value = value; } );
 				folder5.addColor( lhcpm, "color").onChange( function(value) { lhcpm.setColor(value); } );
 
