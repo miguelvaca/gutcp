@@ -376,8 +376,8 @@ var nucleonVertexShader =
 	"\n" 											+ 
 	"void main() {								\n" + 
 	"	vec4 mvPosition;						\n" + 
-	"	// UV.x contains histogram value		\n" + 
-	"	// UV.y is identical to UV.x 			\n" + 
+	"	// UV.x contains the mass value	 		\n" + 
+	"	// UV.y contains the charge value 		\n" + 
 	"		vColor = pow((uv.x / maxHistogramValue), contrast) * (hiColor-loColor) + loColor;	\n" + 
 	"		//vColor = hiColor; 					\n" + 
 	"	//	mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 	\n" + 
