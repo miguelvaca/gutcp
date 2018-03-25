@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+	<!-- @file   : GUTCP_Nucleon.html			-->
+	<!-- @author : J Miguel Vaca 				-->
+	<!-- @remark : This webpage uses WebGL to visualise Dr Randell Mill's Proton and Neutron models as defined in Chapter 37 -->
+	<!--         : of his book The Grand Unified Theory of Classical Physics.  -->
+	<head>
+		<title>GUTCP Nucleon Mass and Charge Density Visualisations</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" href="css/base.css" rel="stylesheet"/>
+		<link type="text/css" href="css/visualisation.css" rel="stylesheet"/>
+	</head>
+	<body>
+        <div id="info">
+            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 37 - Proton and Neutron Mass and Charge Density Functions</a>
+            <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
+        </div>
+
+		<!--script src="https://threejs.org/build/three.js"></script-->
+		<!--script src="https://threejs.org/examples/js/Detector.js"></script-->
+		<!--script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script-->
+		<!--script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script-->
+		<!--script src="./gutcp.js"></script-->
+
+		<script src="../three.js/build/three.js"></script>
+		<script src="../three.js/examples/js/Detector.js"></script>
+		<script src="../three.js/examples/js/libs/stats.min.js"></script>
+		<script src="../three.js/examples/js/libs/dat.gui.min.js"></script>
+		<script src="../three.js/examples/js/controls/OrbitControls.js"></script>
+		<script src="./gutcp.js"></script>
+
+		<script>
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container; //, stats;
+			var camera, scene, renderer, geometry, controls;
+			var clock = new THREE.Clock();
+			var tick = 0;
+			
+            var densitymap;
+            var blackSphere;
+
+			var grid;
+            var effectController;
+            
+			init();
+			animate();
+
+			function init() {
+
+				// A global structure used to store a couple of the adjustable parameters that don't easily
+				// belong somewhere else. Not pretty, but does the trick.
+				effectController = {
+                    waveSpeed: 			0.50,
+					wavesPerRing: 		1.0,
+                    enableBlkSphere: 	false,
+                    background: 		[0, 0, 0]
+				};
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
+				camera.position.y = 120;
+				camera.position.z = 400;
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color(effectController.background[0]/255.0, effectController.background[1]/255.0, effectController.background[2]/255.0);
+
+				renderer = new THREE.WebGLRenderer({antialias:true});
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				
+				window.addEventListener( 'resize', onWindowResize, false );
+				
+				// Add an axis:
+				var axis = new THREE.AxisHelper(200);
+				scene.add(axis);
+				
+				// Create and load the grid into the scene:
+				grid = new Grid();
+				grid.insertScene(scene);
+				grid.setBrightness(0.30);
+				grid.setBackground(effectController.background);
+				
+                init_BlackSphere();
+                
+				// Create the Y00 density map simulator and insert its geometry into the scene:
+				proton = new Nucleon();
+				proton.insertScene(scene);
+				proton.setVisibility(true);
+				
+				// Create the Y00 density map simulator and insert its geometry into the scene:
+				//neutron = new Nucleon();
+				//neutron.insertScene(scene);
+				//neutron.setVisibility(false);
+				
+				// Add all the controls for the various visualisations
+                initGUI();
+                //addTextOutput("MB","#f08","#201");
+			}
+			
+			function init_BlackSphere() {
+				// Create and insert a black sphere that can be used to obscure the back-half of the geometries.
+				// Make its radius 97, which is less than the 100 radius of the rest of the geometries.
+				geometry = new THREE.SphereBufferGeometry( 97, 32, 32 );
+				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
+				blackSphere = new THREE.Mesh( geometry, material );
+				blackSphere.visible = false;
+				scene.add( blackSphere );            
+			}
+			
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				
+				// TODO - need to notify scene object shaders (via uniforms) here if required!
+				// becvfUniforms.cameraConstant.value = getCameraConstant( camera );
+			}
+
+			function getCameraConstant( camera ) {
+				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+			}
+
+			function initGUI() {
+				// Create the parameter control panel (on the right)
+				var gui = new dat.GUI();
+
+				// Add a folder to hold all the common parameters:
+				var folder1 = gui.addFolder( 'Common parameters' );
+                folder1.add( effectController, "waveSpeed", 0.0, 3.0, 0.01 ).onChange( function(value) { 
+                	becvf.cvfUniforms.waveSpeed.value = value; 
+                	ocvf.cvfUniforms.waveSpeed.value = value;
+					y103.cvfUniforms.waveSpeed.value = value;
+					y109.cvfUniforms.waveSpeed.value = value;
+                } );
+				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( function(value) { 
+                	becvf.cvfUniforms.wavesPerRing.value = value; 
+                	ocvf.cvfUniforms.wavesPerRing.value = value;
+					y103.cvfUniforms.wavesPerRing.value = value;
+					y109.cvfUniforms.wavesPerRing.value = value;
+                } );
+				folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
+                folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
+				folder1.addColor( effectController, "background").onChange( function(value) { 
+					scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
+                	becvf.setBackground(value);
+                	ocvf.setBackground(value);
+                	y103.setBackground(value);
+                	y109.setBackground(value);
+					grid.setBackground(value);
+                } );
+
+
+				// Add a folder for the Y00 Eq 1.19-20 current density map parameters:
+                var folder2 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
+                folder2.add( proton, "visibility" ).onChange( function(value) { proton.setVisibility(value); } );
+                folder2.add( proton, "wireframe" ).onChange( function(value) { proton.material.wireframe = value; proton.material.needsUpdate = true; } );
+				folder2.add( proton, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { proton.nucleonUniforms.contrast.value = value; } );
+				folder2.add( proton, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { proton.nucleonUniforms.shape.value = value; } );
+				folder2.addColor( proton, "hiColor").onChange( function(value) { proton.setHiColor(value); } );
+				folder2.addColor( proton, "loColor").onChange( function(value) { proton.setLoColor(value); } );
+
+				// Add a folder for the Y00 Eq 1.19-20 current density map parameters:
+				/*
+                var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
+                folder6.add( neutron, "visibility" ).onChange( function(value) { neutron.setVisibility(value); } );
+                folder6.add( neutron, "wireframe" ).onChange( function(value) { neutron.material.wireframe = value; neutron.material.needsUpdate = true; } );
+				folder6.add( neutron, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { neutron.nucleonUniforms.contrast.value = value; } );
+				folder6.add( neutron, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { neutron.nucleonUniforms.shape.value = value; } );
+				folder6.add( neutron, "N", 12, 120, 12 ).onChange( function(value)    { neutron.N = value; neutron.reset(); } );
+				folder6.add( neutron, "M", 12, 120, 12 ).onChange( function(value)    { neutron.M = value; neutron.reset(); } );
+				folder6.add( neutron, "PHI", 60, 360, 20 ).onChange( function(value) { neutron.PHI = value; neutron.reset(); } );
+				folder6.add( neutron, "pause");
+				folder6.addColor( neutron, "hiColor").onChange( function(value) { neutron.setHiColor(value); } );
+				folder6.addColor( neutron, "loColor").onChange( function(value) { neutron.setLoColor(value); } );
+				*/
+				
+				folder1.open();
+				folder2.open();
+				// folder3.open();
+                // folder4.open();
+                // folder5.open();
+                // folder6.open();
+			}
+
+			function animate() {
+				// Update the elapsed time to later provide to the shaders:
+				var delta = clock.getDelta();
+				tick += delta;
+				if ( tick < 0 ) tick = 0;
+				
+				// Tell WebGL to call the 'animate()' function for the next screen refresh:
+				requestAnimationFrame( animate );
+				
+				// Render the scene, and update the stats:
+				renderer.render( scene, camera );
+				//stats.update();
+			}
+		</script>
+	</body>
+</html>
