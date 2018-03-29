@@ -382,7 +382,7 @@ var nucleonVertexShader =
 	"		vColor = pow(( (mass_not_charge ? uv.x : uv.y) / maxHistogramValue), contrast) * (hiColor-loColor) + loColor;	\n" + 
 	"		//vColor = hiColor; 					\n" + 
 	"	//	mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 	\n" + 
-	"		mvPosition = modelViewMatrix * vec4( position.xyz*pow((uv.x / maxHistogramValue),shape), 1.0 );	\n" + 
+	"		mvPosition = modelViewMatrix * vec4( position.xyz*pow(((mass_not_charge ? uv.x : uv.y) / maxHistogramValue),shape), 1.0 );	\n" + 
 	"											\n" + 
 	"	gl_PointSize = 1.0;						\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; \n" + 
