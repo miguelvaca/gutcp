@@ -1222,7 +1222,7 @@ class Nucleon {
 	constructor( p_mass_not_charge ) {
 		// Create the sphere, and obtain handles to vertices. Also a handle to the UV map, which will be used to
 		// contain either the mass-density (U) or charge-density (V) data:
-		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( 98, 3 );
+		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( 98, 4 );
 		this.nucleonVertices  = this.nucleonGeometry.getAttribute('position');
 		this.nucleonHistogram = this.nucleonGeometry.getAttribute('uv');
 		
