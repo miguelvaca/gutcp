@@ -1238,17 +1238,17 @@ class Nucleon {
 			var theta  = Math.acos(ZZ / radius);
 			var phi    = Math.atan2(YY, XX);
 			
-			var mass   = 0.5  * (0.33 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) + 0.33 * (1.0 + Math.cos(theta)));
-			var charge = 0.25 * (0.67 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.67 * (1.0 + Math.sin(theta) * Math.cos(phi)) - 0.33 * (1.0 + Math.cos(theta)));
+			var mass   = 0.5 * (0.33 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) + 0.33 * (1.0 + Math.cos(theta)));
+			var charge = 0.5 * (0.67 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.67 * (1.0 + Math.sin(theta) * Math.cos(phi)) - 0.33 * (1.0 + Math.cos(theta)));
 			
 			this.nucleonHistogram.setX(i, mass);
 			this.nucleonHistogram.setY(i, charge);
 		}
 		
-		this.hiColor = [0, 255, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
+		this.hiColor = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
 		this.loColor = [0, 0, 255, 1.0]; 	// Let's default to RED in [R, G, B, A]
 		this.contrast = 1.0;
-		this.shape = 1.0;
+		this.shape = 0.0;
 		this.nucleonUniforms = {
 			cameraConstant: 	{ value: getCameraConstant( camera ) },
 			hiColor: 			{ value: new THREE.Vector4(this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]) },
