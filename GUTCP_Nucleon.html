@@ -91,9 +91,14 @@
                 init_BlackSphere();
                 
 				// Create the Y00 density map simulator and insert its geometry into the scene:
-				proton = new Nucleon();
-				proton.insertScene(scene);
-				proton.setVisibility(true);
+				proton_mass = new Nucleon(1);
+				proton_mass.insertScene(scene);
+				proton_mass.setVisibility(true);
+				
+				// Create the Y00 density map simulator and insert its geometry into the scene:
+				proton_charge = new Nucleon(0);
+				proton_charge.insertScene(scene);
+				proton_charge.setVisibility(true);
 				
 				// Create the Y00 density map simulator and insert its geometry into the scene:
 				//neutron = new Nucleon();
@@ -160,13 +165,22 @@
 
 
 				// Add a folder for the Y00 Eq 1.19-20 current density map parameters:
-                var folder2 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
-                folder2.add( proton, "visibility" ).onChange( function(value) { proton.setVisibility(value); } );
-                folder2.add( proton, "wireframe" ).onChange( function(value) { proton.material.wireframe = value; proton.material.needsUpdate = true; } );
-				folder2.add( proton, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { proton.nucleonUniforms.contrast.value = value; } );
-				folder2.add( proton, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { proton.nucleonUniforms.shape.value = value; } );
-				folder2.addColor( proton, "hiColor").onChange( function(value) { proton.setHiColor(value); } );
-				folder2.addColor( proton, "loColor").onChange( function(value) { proton.setLoColor(value); } );
+                var folder2 = gui.addFolder( 'Proton Mass Density Func (Eqn 37.18)' );
+                folder2.add( proton_mass, "visibility" ).onChange( function(value) { proton_mass.setVisibility(value); } );
+                folder2.add( proton_mass, "wireframe" ).onChange( function(value) { proton_mass.material.wireframe = value; proton_mass.material.needsUpdate = true; } );
+				folder2.add( proton_mass, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { proton_mass.nucleonUniforms.contrast.value = value; } );
+				folder2.add( proton_mass, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { proton_mass.nucleonUniforms.shape.value = value; } );
+				folder2.addColor( proton_mass, "hiColor").onChange( function(value) { proton_mass.setHiColor(value); } );
+				folder2.addColor( proton_mass, "loColor").onChange( function(value) { proton_mass.setLoColor(value); } );
+
+				// Add a folder for the Y00 Eq 1.19-20 current density map parameters:
+                var folder3 = gui.addFolder( 'Proton Charge Density Func (Eqn 37.19)' );
+                folder3.add( proton_charge, "visibility" ).onChange( function(value) { proton_charge.setVisibility(value); } );
+                folder3.add( proton_charge, "wireframe" ).onChange( function(value) { proton_charge.material.wireframe = value; proton_charge.material.needsUpdate = true; } );
+				folder3.add( proton_charge, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { proton_charge.nucleonUniforms.contrast.value = value; } );
+				folder3.add( proton_charge, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { proton_charge.nucleonUniforms.shape.value = value; } );
+				folder3.addColor( proton_charge, "hiColor").onChange( function(value) { proton_charge.setHiColor(value); } );
+				folder3.addColor( proton_charge, "loColor").onChange( function(value) { proton_charge.setLoColor(value); } );
 
 				// Add a folder for the Y00 Eq 1.19-20 current density map parameters:
 				/*

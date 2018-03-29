@@ -372,13 +372,14 @@ var nucleonVertexShader =
 	"uniform float maxHistogramValue;			\n" + 
 	"uniform float contrast;					\n" + 
 	"uniform float shape;						\n" + 
+	"uniform bool  mass_not_charge;				\n" + 
 	"varying vec4 vColor;						\n" + 
 	"\n" 											+ 
 	"void main() {								\n" + 
 	"	vec4 mvPosition;						\n" + 
 	"	// UV.x contains the mass value	 		\n" + 
 	"	// UV.y contains the charge value 		\n" + 
-	"		vColor = pow((uv.x / maxHistogramValue), contrast) * (hiColor-loColor) + loColor;	\n" + 
+	"		vColor = pow(( (mass_not_charge ? uv.x : uv.y) / maxHistogramValue), contrast) * (hiColor-loColor) + loColor;	\n" + 
 	"		//vColor = hiColor; 					\n" + 
 	"	//	mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 	\n" + 
 	"		mvPosition = modelViewMatrix * vec4( position.xyz*pow((uv.x / maxHistogramValue),shape), 1.0 );	\n" + 
@@ -1218,7 +1219,7 @@ class DensityMap {
 // Density map class for calculating the CVF heat/density map:
 class Nucleon {
 
-	constructor() {
+	constructor( p_mass_not_charge ) {
 		// Create the sphere, and obtain handles to vertices. Also a handle to the UV map, which will be used to
 		// contain either the mass-density (U) or charge-density (V) data:
 		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( 98, 3 );
@@ -1237,14 +1238,9 @@ class Nucleon {
 			var theta  = Math.acos(ZZ / radius);
 			var phi    = Math.atan2(YY, XX);
 			
-			var mass = 0.5 * (0.33 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) + 0.33 * (1.0 + Math.cos(theta)));
+			var mass   = 0.5  * (0.33 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) + 0.33 * (1.0 + Math.cos(theta)));
 			var charge = 0.25 * (0.67 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.67 * (1.0 + Math.sin(theta) * Math.cos(phi)) - 0.33 * (1.0 + Math.cos(theta)));
 			
-			//console.log(theta, phi, mass, charge);
-			
-			//this.nucleonHistogram.setX(i, ((1.0 + Math.sin(theta) * Math.sin(phi)) * 0.5));
-			//-this.nucleonHistogram.setX(i, ((1.0 + Math.sin(theta) * Math.cos(phi)) * 0.5));
-			//this.nucleonHistogram.setX(i, ((1.0 + Math.cos(phi)) * 0.5));
 			this.nucleonHistogram.setX(i, mass);
 			this.nucleonHistogram.setY(i, charge);
 		}
@@ -1259,7 +1255,8 @@ class Nucleon {
 			loColor: 			{ value: new THREE.Vector4(this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]) },
 			maxHistogramValue: 	{ value: 1.0 },
 			contrast:			{ value: this.contrast },
-			shape: 				{ value: this.shape }
+			shape: 				{ value: this.shape },
+			mass_not_charge: 	{ value: p_mass_not_charge }
 		};
 		// ShaderMaterial
 		this.wireframe = false;
