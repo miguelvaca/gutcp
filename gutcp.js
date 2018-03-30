@@ -1333,8 +1333,8 @@ class Neutron {
 			this.nucleonHistogram.setY(i, charge);
 		}
 		
-		this.hiColor = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
-		this.loColor = [0, 0, 255, 1.0]; 	// Let's default to RED in [R, G, B, A]
+		this.hiColor = [255, 0, 0, 1.0]; 	// Let's default to  RED in [R, G, B, A]
+		this.loColor = [0, 0, 255, 1.0]; 	// Let's default to BLUE in [R, G, B, A]
 		this.contrast = 1.0;
 		this.shape = 0.0;
 		this.nucleonUniforms = {
