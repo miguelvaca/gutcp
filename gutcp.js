@@ -1216,12 +1216,13 @@ class DensityMap {
 	}
 }
 
-// Density map class for calculating the CVF heat/density map:
-class Nucleon {
+// Proton normalised mass and charge density functions:
+class Proton {
 
 	constructor( p_mass_not_charge ) {
 		// Create the sphere, and obtain handles to vertices. Also a handle to the UV map, which will be used to
 		// contain either the mass-density (U) or charge-density (V) data:
+		//this.nucleonGeometry  = new THREE.SphereBufferGeometry( 98, 40, 20 );
 		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( 98, 4 );
 		this.nucleonVertices  = this.nucleonGeometry.getAttribute('position');
 		this.nucleonHistogram = this.nucleonGeometry.getAttribute('uv');
@@ -1234,12 +1235,99 @@ class Nucleon {
 			
 			//var theta = (XX >= 0.0 ? 1: -1) *  Math.acos( XX / Math.sqrt(Math.pow(XX,2) + Math.pow(YY,2)));
 			//var theta = Math.acos( XX / Math.sqrt(Math.pow(XX,2) + Math.pow(YY,2)));
+			
 			var radius = Math.sqrt(Math.pow(XX,2) + Math.pow(YY,2) + Math.pow(ZZ,2));
 			var theta  = Math.acos(ZZ / radius);
 			var phi    = Math.atan2(YY, XX);
 			
 			var mass   = 0.5 * (0.33 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) + 0.33 * (1.0 + Math.cos(theta)));
 			var charge = 0.5 * (0.67 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.67 * (1.0 + Math.sin(theta) * Math.cos(phi)) - 0.33 * (1.0 + Math.cos(theta)));
+			
+			this.nucleonHistogram.setX(i, mass);
+			this.nucleonHistogram.setY(i, charge);
+		}
+		
+		this.hiColor = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
+		this.loColor = [0, 0, 255, 1.0]; 	// Let's default to RED in [R, G, B, A]
+		this.contrast = 1.0;
+		this.shape = 0.0;
+		this.nucleonUniforms = {
+			cameraConstant: 	{ value: getCameraConstant( camera ) },
+			hiColor: 			{ value: new THREE.Vector4(this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]) },
+			loColor: 			{ value: new THREE.Vector4(this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]) },
+			maxHistogramValue: 	{ value: 1.0 },
+			contrast:			{ value: this.contrast },
+			shape: 				{ value: this.shape },
+			mass_not_charge: 	{ value: p_mass_not_charge }
+		};
+		// ShaderMaterial
+		this.wireframe = false;
+		this.material = new THREE.ShaderMaterial( {
+												uniforms:       this.nucleonUniforms,
+												vertexShader:   nucleonVertexShader,
+												fragmentShader: cvfFragmentShader,
+												wireframe: 		this.wireframe
+												} );
+		this.material.extensions.drawBuffers = true;
+		this.nucleonMesh = new THREE.Mesh( this.nucleonGeometry, this.material );
+		this.visibility = true;
+		this.nucleonMesh.visible = this.visibility;
+	}
+
+	// Insert the geometries into the scenegraph's sceneObject:
+	insertScene(sceneObject) {
+		sceneObject.add(this.nucleonMesh);
+	}
+	
+	// Set the visible geometry. No point ever displaying both, as they use the SAME vertices:
+	setVisibility(value) {
+		this.visibility = value;
+		this.nucleonMesh.visible = value;
+	}
+	
+	// Select whether to animate or not:
+	setAnimate(value) {
+		this.nucleonUniforms.animate.value = (value) ? true : false;
+	}
+	
+	// Little hack for dat.gui. Update the color by passing 4-element array in form [255, 128, 0, 1.0]:
+	setHiColor(value) {
+		this.hiColor = value;
+		this.nucleonUniforms.hiColor.value = [this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]];
+	}
+	
+	setLoColor(value) {
+		this.loColor = value;
+		this.nucleonUniforms.loColor.value = [this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]];
+	}
+}
+
+// Proton normalised mass and charge density functions:
+class Neutron {
+
+	constructor( p_mass_not_charge ) {
+		// Create the sphere, and obtain handles to vertices. Also a handle to the UV map, which will be used to
+		// contain either the mass-density (U) or charge-density (V) data:
+		//this.nucleonGeometry  = new THREE.SphereBufferGeometry( 98, 40, 20 );
+		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( 98, 4 );
+		this.nucleonVertices  = this.nucleonGeometry.getAttribute('position');
+		this.nucleonHistogram = this.nucleonGeometry.getAttribute('uv');
+		
+		// Store mass (u) and charge (v) density function values in uv array:
+		for(var i = 0; i < this.nucleonHistogram.count; i++) {
+			var XX = this.nucleonVertices.getX(i);
+			var YY = this.nucleonVertices.getY(i);
+			var ZZ = this.nucleonVertices.getZ(i);
+			
+			//var theta = (XX >= 0.0 ? 1: -1) *  Math.acos( XX / Math.sqrt(Math.pow(XX,2) + Math.pow(YY,2)));
+			//var theta = Math.acos( XX / Math.sqrt(Math.pow(XX,2) + Math.pow(YY,2)));
+			
+			var radius = Math.sqrt(Math.pow(XX,2) + Math.pow(YY,2) + Math.pow(ZZ,2));
+			var theta  = Math.acos(ZZ / radius);
+			var phi    = Math.atan2(YY, XX);
+			
+			var mass   = 0.5 * (0.33 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) + 0.33 * (1.0 + Math.cos(theta)));
+			var charge = 0.5 * (0.67 * (1.0 + Math.sin(theta) * Math.sin(phi)) - 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) - 0.33 * (1.0 + Math.cos(theta)));
 			
 			this.nucleonHistogram.setX(i, mass);
 			this.nucleonHistogram.setY(i, charge);

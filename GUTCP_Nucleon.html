@@ -90,15 +90,25 @@
 				
                 init_BlackSphere();
                 
-				// Create the Y00 density map simulator and insert its geometry into the scene:
-				proton_mass = new Nucleon(1);
+				// Create the proton mass density function and insert its geometry into the scene:
+				proton_mass = new Proton(1);
 				proton_mass.insertScene(scene);
 				proton_mass.setVisibility(true);
 				
-				// Create the Y00 density map simulator and insert its geometry into the scene:
-				proton_charge = new Nucleon(0);
+				// Create the proton charge density function and insert its geometry into the scene:
+				proton_charge = new Proton(0);
 				proton_charge.insertScene(scene);
 				proton_charge.setVisibility(false);
+				
+				// Create the neutron mass density function and insert its geometry into the scene:
+				neutron_mass = new Neutron(1);
+				neutron_mass.insertScene(scene);
+				neutron_mass.setVisibility(false);
+				
+				// Create the neutron charge density function and insert its geometry into the scene:
+				neutron_charge = new Neutron(0);
+				neutron_charge.insertScene(scene);
+				neutron_charge.setVisibility(false);
 				
 				// Add all the controls for the various visualisations
                 initGUI();
@@ -176,11 +186,29 @@
 				folder3.addColor( proton_charge, "hiColor").onChange( function(value) { proton_charge.setHiColor(value); } );
 				folder3.addColor( proton_charge, "loColor").onChange( function(value) { proton_charge.setLoColor(value); } );
 
+				// Add a folder for the Eqn 37.18 proton mass density function:
+                var folder4 = gui.addFolder( 'Neutron Mass Density Func (Eqn 37.22)' );
+                folder4.add( neutron_mass, "visibility" ).onChange( function(value) { neutron_mass.setVisibility(value); } );
+                folder4.add( neutron_mass, "wireframe" ).onChange( function(value) { neutron_mass.material.wireframe = value; neutron_mass.material.needsUpdate = true; } );
+				folder4.add( neutron_mass, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { neutron_mass.nucleonUniforms.contrast.value = value; } );
+				folder4.add( neutron_mass, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { neutron_mass.nucleonUniforms.shape.value = value; } );
+				folder4.addColor( neutron_mass, "hiColor").onChange( function(value) { neutron_mass.setHiColor(value); } );
+				folder4.addColor( neutron_mass, "loColor").onChange( function(value) { neutron_mass.setLoColor(value); } );
+
+				// Add a folder for the Eqn 37.18 proton charge density function:
+                var folder5 = gui.addFolder( 'Neutron Charge Density Func (Eqn 37.23)' );
+                folder5.add( neutron_charge, "visibility" ).onChange( function(value) { neutron_charge.setVisibility(value); } );
+                folder5.add( neutron_charge, "wireframe" ).onChange( function(value) { neutron_charge.material.wireframe = value; neutron_charge.material.needsUpdate = true; } );
+				folder5.add( neutron_charge, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { neutron_charge.nucleonUniforms.contrast.value = value; } );
+				folder5.add( neutron_charge, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { neutron_charge.nucleonUniforms.shape.value = value; } );
+				folder5.addColor( neutron_charge, "hiColor").onChange( function(value) { neutron_charge.setHiColor(value); } );
+				folder5.addColor( neutron_charge, "loColor").onChange( function(value) { neutron_charge.setLoColor(value); } );
+
 				folder1.open();
 				folder2.open();
 				folder3.open();
-                // folder4.open();
-                // folder5.open();
+                folder4.open();
+                folder5.open();
                 // folder6.open();
 			}
 
