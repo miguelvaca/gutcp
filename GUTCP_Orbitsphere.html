@@ -88,6 +88,10 @@
 				//container.appendChild( stats.dom );
 				window.addEventListener( 'resize', onWindowResize, false );
 				
+				// Add an axis:
+				var axis = new THREE.AxisHelper(200);
+				scene.add(axis);
+				
 				// Create and load the grid into the scene:
 				grid = new Grid();
 				grid.insertScene(scene);
