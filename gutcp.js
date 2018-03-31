@@ -369,7 +369,10 @@ var densitymapVertexShader =
 var nucleonVertexShader = 
 	"uniform vec4  hiColor; 					\n" + 
 	"uniform vec4  loColor;						\n" + 
-	"uniform float maxHistogramValue;			\n" + 
+	"uniform float maxMassValue;				\n" + 
+	"uniform float minMassValue;				\n" + 
+	"uniform float maxChargeValue;				\n" + 
+	"uniform float minChargeValue;				\n" + 
 	"uniform float contrast;					\n" + 
 	"uniform float shape;						\n" + 
 	"uniform bool  mass_not_charge;				\n" + 
@@ -379,10 +382,13 @@ var nucleonVertexShader =
 	"	vec4 mvPosition;						\n" + 
 	"	// UV.x contains the mass value	 		\n" + 
 	"	// UV.y contains the charge value 		\n" + 
-	"		vColor = pow(( (mass_not_charge ? uv.x : uv.y) / maxHistogramValue), contrast) * (hiColor-loColor) + loColor;	\n" + 
-	"		//vColor = hiColor; 					\n" + 
-	"	//	mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 	\n" + 
-	"		mvPosition = modelViewMatrix * vec4( position.xyz*pow(((mass_not_charge ? uv.x : uv.y) / maxHistogramValue),shape), 1.0 );	\n" + 
+	"	if(mass_not_charge) { 					\n" + 
+	"		vColor = pow(( (uv.x-minMassValue) / (maxMassValue-minMassValue)), contrast) * (hiColor-loColor) + loColor;	\n" + 
+	"		mvPosition = modelViewMatrix * vec4( position.xyz*pow(( (uv.x-minMassValue) / (maxMassValue-minMassValue)), shape), 1.0 );	\n" + 
+	"	} else { 								\n" + 
+	"		vColor = pow(( (uv.y-minChargeValue) / (maxChargeValue-minChargeValue)), contrast) * (hiColor-loColor) + loColor;	\n" + 
+	"		mvPosition = modelViewMatrix * vec4( position.xyz*pow(( (uv.y-minChargeValue) / (maxChargeValue-minChargeValue)),shape), 1.0 );	\n" + 
+	"	}  										\n" + 
 	"											\n" + 
 	"	gl_PointSize = 1.0;						\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; \n" + 
@@ -1227,6 +1233,11 @@ class Proton {
 		this.nucleonVertices  = this.nucleonGeometry.getAttribute('position');
 		this.nucleonHistogram = this.nucleonGeometry.getAttribute('uv');
 		
+		var minMass = 0.0;
+		var maxMass = 0.0;
+		var minCharge = 0.0;
+		var maxCharge = 0.0;
+		
 		// Store mass (u) and charge (v) density function values in uv array:
 		for(var i = 0; i < this.nucleonHistogram.count; i++) {
 			var XX = this.nucleonVertices.getX(i);
@@ -1243,6 +1254,26 @@ class Proton {
 			var mass   = 0.5 * (0.33 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) + 0.33 * (1.0 + Math.cos(theta)));
 			var charge = 0.5 * (0.67 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.67 * (1.0 + Math.sin(theta) * Math.cos(phi)) - 0.33 * (1.0 + Math.cos(theta)));
 			
+			if(i == 0) {
+				minMass = mass;
+				maxMass = mass;
+				minCharge = charge;
+				maxCharge = charge;
+			} else {
+				if(mass > maxMass) {
+					maxMass = mass;
+				}
+				if(mass < minMass) {
+					minMass = mass;
+				}
+				if(charge > maxCharge) {
+					maxCharge = charge;
+				}
+				if(charge < minCharge) {
+					minCharge = charge;
+				}
+			}
+			
 			this.nucleonHistogram.setX(i, mass);
 			this.nucleonHistogram.setY(i, charge);
 		}
@@ -1255,7 +1286,10 @@ class Proton {
 			cameraConstant: 	{ value: getCameraConstant( camera ) },
 			hiColor: 			{ value: new THREE.Vector4(this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]) },
 			loColor: 			{ value: new THREE.Vector4(this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]) },
-			maxHistogramValue: 	{ value: 1.0 },
+			maxMassValue: 		{ value: maxMass },
+			minMassValue: 		{ value: minMass },
+			maxChargeValue: 	{ value: maxCharge },
+			minChargeValue: 	{ value: minCharge },
 			contrast:			{ value: this.contrast },
 			shape: 				{ value: this.shape },
 			mass_not_charge: 	{ value: p_mass_not_charge }
@@ -1312,6 +1346,11 @@ class Neutron {
 		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( 98, 4 );
 		this.nucleonVertices  = this.nucleonGeometry.getAttribute('position');
 		this.nucleonHistogram = this.nucleonGeometry.getAttribute('uv');
+
+		var minMass = 0.0;
+		var maxMass = 0.0;
+		var minCharge = 0.0;
+		var maxCharge = 0.0;
 		
 		// Store mass (u) and charge (v) density function values in uv array:
 		for(var i = 0; i < this.nucleonHistogram.count; i++) {
@@ -1327,7 +1366,27 @@ class Neutron {
 			var phi    = Math.atan2(YY, XX);
 			
 			var mass   = 0.5 * (0.33 * (1.0 + Math.sin(theta) * Math.sin(phi)) + 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) + 0.33 * (1.0 + Math.cos(theta)));
-			var charge = 0.5 * (0.67 * (1.0 + Math.sin(theta) * Math.sin(phi)) - 0.33 * (1.0 + Math.sin(theta) * Math.cos(phi)) - 0.33 * (1.0 + Math.cos(theta)));
+			var charge = 0.5 + 0.5 * (0.67 * (1.0 + Math.sin(theta) * Math.sin(phi)) - (0.33 * (1.0 + Math.sin(theta) * Math.cos(phi))) - (0.33 * (1.0 + Math.cos(theta))));
+			
+			if(i == 0) {
+				minMass = mass;
+				maxMass = mass;
+				minCharge = charge;
+				maxCharge = charge;
+			} else {
+				if(mass > maxMass) {
+					maxMass = mass;
+				}
+				if(mass < minMass) {
+					minMass = mass;
+				}
+				if(charge > maxCharge) {
+					maxCharge = charge;
+				}
+				if(charge < minCharge) {
+					minCharge = charge;
+				}
+			}
 			
 			this.nucleonHistogram.setX(i, mass);
 			this.nucleonHistogram.setY(i, charge);
@@ -1341,7 +1400,10 @@ class Neutron {
 			cameraConstant: 	{ value: getCameraConstant( camera ) },
 			hiColor: 			{ value: new THREE.Vector4(this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]) },
 			loColor: 			{ value: new THREE.Vector4(this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]) },
-			maxHistogramValue: 	{ value: 1.0 },
+			maxMassValue: 		{ value: maxMass },
+			minMassValue: 		{ value: minMass },
+			maxChargeValue: 	{ value: maxCharge },
+			minChargeValue: 	{ value: minCharge },
 			contrast:			{ value: this.contrast },
 			shape: 				{ value: this.shape },
 			mass_not_charge: 	{ value: p_mass_not_charge }
