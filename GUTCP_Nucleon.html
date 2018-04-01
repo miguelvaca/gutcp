@@ -148,10 +148,6 @@
                 folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
 				folder1.addColor( effectController, "background").onChange( function(value) { 
 					scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
-                	becvf.setBackground(value);
-                	ocvf.setBackground(value);
-                	y103.setBackground(value);
-                	y109.setBackground(value);
 					grid.setBackground(value);
                 } );
 
