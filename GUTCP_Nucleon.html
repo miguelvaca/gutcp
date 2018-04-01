@@ -144,18 +144,6 @@
 
 				// Add a folder to hold all the common parameters:
 				var folder1 = gui.addFolder( 'Common parameters' );
-                folder1.add( effectController, "waveSpeed", 0.0, 3.0, 0.01 ).onChange( function(value) { 
-                	becvf.cvfUniforms.waveSpeed.value = value; 
-                	ocvf.cvfUniforms.waveSpeed.value = value;
-					y103.cvfUniforms.waveSpeed.value = value;
-					y109.cvfUniforms.waveSpeed.value = value;
-                } );
-				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( function(value) { 
-                	becvf.cvfUniforms.wavesPerRing.value = value; 
-                	ocvf.cvfUniforms.wavesPerRing.value = value;
-					y103.cvfUniforms.wavesPerRing.value = value;
-					y109.cvfUniforms.wavesPerRing.value = value;
-                } );
 				folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
                 folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
 				folder1.addColor( effectController, "background").onChange( function(value) { 
