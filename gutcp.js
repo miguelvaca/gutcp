@@ -394,6 +394,27 @@ var nucleonVertexShader =
 	"	gl_Position = projectionMatrix * mvPosition; \n" + 
 	"}	\n";
 
+// Heatmap vertex shader - Use this to update the position due to camera projection 
+var sphereVertexShader = 
+	"uniform vec4  hiColor; 					\n" + 
+	"uniform vec4  loColor;						\n" + 
+	"uniform float thetaFreq;					\n" + 
+	"uniform float phiFreq;						\n" + 
+	"uniform float contrast;					\n" + 
+	"uniform float shape;						\n" + 
+	"varying vec4 vColor;						\n" + 
+	"\n" 											+ 
+	"void main() {								\n" + 
+	"	vec4 mvPosition;						\n" + 
+	"	// UV.x contains the theta value	 		\n" + 
+	"	// UV.y contains the phi value 		\n" + 
+	"	vColor = cos(uv.y*phiFreq)*cos(uv.x*thetaFreq)*(hiColor-loColor) + loColor;	\n" + 
+	"	mvPosition = modelViewMatrix * vec4( position.xyz*pow(cos(uv.y*phiFreq)*cos(uv.x*thetaFreq), shape), 1.0);	\n" + 
+	"											\n" + 
+	"	gl_PointSize = 1.0;						\n" + 
+	"	gl_Position = projectionMatrix * mvPosition; \n" + 
+	"}	\n";
+
 // CVF fragment shader 
 var cvfFragmentShader = 
 	"varying vec4 vColor; 			\n" +
@@ -609,7 +630,7 @@ class CVF {
 		var sin_theta = Math.sin(2.0 * Math.PI * i_theta / THETA);
 
 		var cvfRot = [];
-		if(mode == 1) {
+		if(mode == 3) {
 			// Setup the 3x3 rotation matrix from GUTCP Eq(V-4) Right-Handed
 			cvfRot[0+0] = ( 0.5 + 0.5*cos_theta);
 			cvfRot[0+1] = ( 0.5 - 0.5*cos_theta);
@@ -620,7 +641,7 @@ class CVF {
 			cvfRot[6+0] = ( 0.70711*sin_theta);
 			cvfRot[6+1] = (-0.70711*sin_theta);
 			cvfRot[6+2] = (cos_theta);
-		} else {
+		} else if(mode == 2) {
 			// Setup the 3x3 rotation matrix from GUTCP Eq(V-9) Left-Handed
 			cvfRot[0+0] = ( 0.5 + 0.5*cos_theta);
 			cvfRot[0+1] = (-0.5 + 0.5*cos_theta);
@@ -631,6 +652,17 @@ class CVF {
 			cvfRot[6+0] = (-0.70711*sin_theta);
 			cvfRot[6+1] = (-0.70711*sin_theta);
 			cvfRot[6+2] = (cos_theta);
+		} else {
+			// Setup the 3x3 rotation matrix about Z axis:
+			cvfRot[0+0] = (cos_theta);
+			cvfRot[0+1] = (-sin_theta);
+			cvfRot[0+2] = (0.0);
+			cvfRot[3+0] = (sin_theta);
+			cvfRot[3+1] = (cos_theta); 
+			cvfRot[3+2] = (0.0);
+			cvfRot[6+0] = (0.0);
+			cvfRot[6+1] = (0.0);
+			cvfRot[6+2] = (1.0);
 		}
 		
 		var phi;
@@ -1413,6 +1445,88 @@ class Neutron {
 		this.material = new THREE.ShaderMaterial( {
 												uniforms:       this.nucleonUniforms,
 												vertexShader:   nucleonVertexShader,
+												fragmentShader: cvfFragmentShader,
+												wireframe: 		this.wireframe
+												} );
+		this.material.extensions.drawBuffers = true;
+		this.nucleonMesh = new THREE.Mesh( this.nucleonGeometry, this.material );
+		this.visibility = true;
+		this.nucleonMesh.visible = this.visibility;
+	}
+
+	// Insert the geometries into the scenegraph's sceneObject:
+	insertScene(sceneObject) {
+		sceneObject.add(this.nucleonMesh);
+	}
+	
+	// Set the visible geometry. No point ever displaying both, as they use the SAME vertices:
+	setVisibility(value) {
+		this.visibility = value;
+		this.nucleonMesh.visible = value;
+	}
+	
+	// Select whether to animate or not:
+	setAnimate(value) {
+		this.nucleonUniforms.animate.value = (value) ? true : false;
+	}
+	
+	// Little hack for dat.gui. Update the color by passing 4-element array in form [255, 128, 0, 1.0]:
+	setHiColor(value) {
+		this.hiColor = value;
+		this.nucleonUniforms.hiColor.value = [this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]];
+	}
+	
+	setLoColor(value) {
+		this.loColor = value;
+		this.nucleonUniforms.loColor.value = [this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]];
+	}
+}
+
+// Proton normalised mass and charge density functions:
+class HarmonicSphere {
+
+	constructor( ) {
+		// Create the sphere, and obtain handles to vertices. Also a handle to the UV map, which will be used to
+		// contain either the mass-density (U) or charge-density (V) data:
+		//this.nucleonGeometry  = new THREE.SphereBufferGeometry( 98, 40, 20 );
+		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( 98, 4 );
+		this.nucleonVertices  = this.nucleonGeometry.getAttribute('position');
+		this.nucleonHistogram = this.nucleonGeometry.getAttribute('uv');
+		
+		// Store mass (u) and charge (v) density function values in uv array:
+		for(var i = 0; i < this.nucleonHistogram.count; i++) {
+			var XX = this.nucleonVertices.getX(i);
+			var YY = this.nucleonVertices.getY(i);
+			var ZZ = this.nucleonVertices.getZ(i);
+			
+			var radius = Math.sqrt(Math.pow(XX,2) + Math.pow(YY,2) + Math.pow(ZZ,2));
+			var theta  = Math.acos(ZZ / radius);
+			var phi    = Math.atan2(YY, XX);
+			
+			this.nucleonHistogram.setX(i, theta);
+			this.nucleonHistogram.setY(i, phi);
+		}
+		
+		this.phiFreq = 0.0;
+		this.thetaFreq = 0.0;
+		this.hiColor = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
+		this.loColor = [0, 0, 255, 1.0]; 	// Let's default to RED in [R, G, B, A]
+		this.contrast = 1.0;
+		this.shape = 1.0;
+		this.nucleonUniforms = {
+			cameraConstant: 	{ value: getCameraConstant( camera ) },
+			hiColor: 			{ value: new THREE.Vector4(this.hiColor[0]/255.0, this.hiColor[1]/255.0, this.hiColor[2]/255.0, this.hiColor[3]) },
+			loColor: 			{ value: new THREE.Vector4(this.loColor[0]/255.0, this.loColor[1]/255.0, this.loColor[2]/255.0, this.loColor[3]) },
+			phiFreq: 			{ value: this.phiFreq },
+			thetaFreq: 			{ value: this.thetaFreq },
+			contrast:			{ value: this.contrast },
+			shape: 				{ value: this.shape }
+		};
+		// ShaderMaterial
+		this.wireframe = false;
+		this.material = new THREE.ShaderMaterial( {
+												uniforms:       this.nucleonUniforms,
+												vertexShader:   sphereVertexShader,
 												fragmentShader: cvfFragmentShader,
 												wireframe: 		this.wireframe
 												} );

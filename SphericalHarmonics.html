@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+	<!-- @file   : SphericalHarmonics.html 			-->
+	<!-- @author : J Miguel Vaca 					-->
+	<!-- @remark : This webpage uses WebGL to visualise Dr Randell Mill's Proton and Neutron models as defined in Chapter 37 -->
+	<!--         : of his book The Grand Unified Theory of Classical Physics.  -->
+	<head>
+		<title>Spherical Harmonics Visualisations</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" href="css/base.css" rel="stylesheet"/>
+		<link type="text/css" href="css/visualisation.css" rel="stylesheet"/>
+	</head>
+	<body>
+        <div id="info">
+            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 37 - Proton and Neutron Mass and Charge Density Functions</a>
+            <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
+        </div>
+
+		<script src="https://threejs.org/build/three.js"></script>
+		<script src="https://threejs.org/examples/js/Detector.js"></script>
+		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
+		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+		<script src="./gutcp.js"></script>
+
+		<!--script src="../three.js/build/three.js"></script-->
+		<!--script src="../three.js/examples/js/Detector.js"></script-->
+		<!--script src="../three.js/examples/js/libs/stats.min.js"></script-->
+		<!--script src="../three.js/examples/js/libs/dat.gui.min.js"></script-->
+		<!--script src="../three.js/examples/js/controls/OrbitControls.js"></script-->
+		<!--script src="./gutcp.js"></script-->
+
+		<script>
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container; //, stats;
+			var camera, scene, renderer, geometry, controls;
+			var clock = new THREE.Clock();
+			var tick = 0;
+			
+            var densitymap;
+            var blackSphere;
+
+			var grid;
+            var effectController;
+            
+			init();
+			animate();
+
+			function init() {
+
+				// A global structure used to store a couple of the adjustable parameters that don't easily
+				// belong somewhere else. Not pretty, but does the trick.
+				effectController = {
+                    waveSpeed: 			0.50,
+					wavesPerRing: 		1.0,
+                    enableBlkSphere: 	false,
+                    background: 		[0, 0, 0]
+				};
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
+				camera.position.y = 120;
+				camera.position.z = 400;
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color(effectController.background[0]/255.0, effectController.background[1]/255.0, effectController.background[2]/255.0);
+
+				renderer = new THREE.WebGLRenderer({antialias:true});
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				
+				window.addEventListener( 'resize', onWindowResize, false );
+				
+				// Add an axis:
+				var axis = new THREE.AxisHelper(200);
+				scene.add(axis);
+				
+				// Create and load the grid into the scene:
+				grid = new Grid();
+				grid.insertScene(scene);
+				grid.setBrightness(0.30);
+				grid.setBackground(effectController.background);
+				
+                init_BlackSphere();
+                
+				// Create the proton mass density function and insert its geometry into the scene:
+				proton_mass = new HarmonicSphere();
+				proton_mass.insertScene(scene);
+				proton_mass.setVisibility(true);
+								
+				// Add all the controls for the various visualisations
+                initGUI();
+			}
+			
+			function init_BlackSphere() {
+				// Create and insert a black sphere that can be used to obscure the back-half of the geometries.
+				// Make its radius 97, which is less than the 100 radius of the rest of the geometries.
+				geometry = new THREE.SphereBufferGeometry( 97, 32, 32 );
+				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
+				blackSphere = new THREE.Mesh( geometry, material );
+				blackSphere.visible = false;
+				scene.add( blackSphere );            
+			}
+			
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				
+				// TODO - need to notify scene object shaders (via uniforms) here if required!
+				// becvfUniforms.cameraConstant.value = getCameraConstant( camera );
+			}
+
+			function getCameraConstant( camera ) {
+				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+			}
+
+			function initGUI() {
+				// Create the parameter control panel (on the right)
+				var gui = new dat.GUI();
+
+				// Add a folder to hold all the common parameters:
+				var folder1 = gui.addFolder( 'Common parameters' );
+				folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
+                folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
+				folder1.addColor( effectController, "background").onChange( function(value) { 
+					scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
+					grid.setBackground(value);
+                } );
+
+				// Add a folder for the Eqn 37.18 proton mass density function:
+                var folder2 = gui.addFolder( 'Proton Mass Density Func (Eqn 37.18)' );
+                folder2.add( proton_mass, "visibility" ).onChange( function(value) { proton_mass.setVisibility(value); } );
+                folder2.add( proton_mass, "wireframe" ).onChange( function(value) { proton_mass.material.wireframe = value; proton_mass.material.needsUpdate = true; } );
+				folder2.add( proton_mass, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { proton_mass.nucleonUniforms.contrast.value = value; } );
+				folder2.add( proton_mass, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { proton_mass.nucleonUniforms.shape.value = value; } );
+				folder2.add( proton_mass, "thetaFreq", 0.0, 6.0, 0.10 ).onChange( function(value) { proton_mass.nucleonUniforms.thetaFreq.value = value; } );
+				folder2.add( proton_mass, "phiFreq", 0.0, 6.0, 0.10 ).onChange( function(value) { proton_mass.nucleonUniforms.phiFreq.value = value; } );
+				
+				folder2.addColor( proton_mass, "hiColor").onChange( function(value) { proton_mass.setHiColor(value); } );
+				folder2.addColor( proton_mass, "loColor").onChange( function(value) { proton_mass.setLoColor(value); } );
+/*
+				// Add a folder for the Eqn 37.18 proton charge density function:
+                var folder3 = gui.addFolder( 'Proton Charge Density Func (Eqn 37.19)' );
+                folder3.add( proton_charge, "visibility" ).onChange( function(value) { proton_charge.setVisibility(value); } );
+                folder3.add( proton_charge, "wireframe" ).onChange( function(value) { proton_charge.material.wireframe = value; proton_charge.material.needsUpdate = true; } );
+				folder3.add( proton_charge, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { proton_charge.nucleonUniforms.contrast.value = value; } );
+				folder3.add( proton_charge, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { proton_charge.nucleonUniforms.shape.value = value; } );
+				folder3.addColor( proton_charge, "hiColor").onChange( function(value) { proton_charge.setHiColor(value); } );
+				folder3.addColor( proton_charge, "loColor").onChange( function(value) { proton_charge.setLoColor(value); } );
+
+				// Add a folder for the Eqn 37.18 proton mass density function:
+                var folder4 = gui.addFolder( 'Neutron Mass Density Func (Eqn 37.22)' );
+                folder4.add( neutron_mass, "visibility" ).onChange( function(value) { neutron_mass.setVisibility(value); } );
+                folder4.add( neutron_mass, "wireframe" ).onChange( function(value) { neutron_mass.material.wireframe = value; neutron_mass.material.needsUpdate = true; } );
+				folder4.add( neutron_mass, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { neutron_mass.nucleonUniforms.contrast.value = value; } );
+				folder4.add( neutron_mass, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { neutron_mass.nucleonUniforms.shape.value = value; } );
+				folder4.addColor( neutron_mass, "hiColor").onChange( function(value) { neutron_mass.setHiColor(value); } );
+				folder4.addColor( neutron_mass, "loColor").onChange( function(value) { neutron_mass.setLoColor(value); } );
+
+				// Add a folder for the Eqn 37.18 proton charge density function:
+                var folder5 = gui.addFolder( 'Neutron Charge Density Func (Eqn 37.23)' );
+                folder5.add( neutron_charge, "visibility" ).onChange( function(value) { neutron_charge.setVisibility(value); } );
+                folder5.add( neutron_charge, "wireframe" ).onChange( function(value) { neutron_charge.material.wireframe = value; neutron_charge.material.needsUpdate = true; } );
+				folder5.add( neutron_charge, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { neutron_charge.nucleonUniforms.contrast.value = value; } );
+				folder5.add( neutron_charge, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { neutron_charge.nucleonUniforms.shape.value = value; } );
+				folder5.addColor( neutron_charge, "hiColor").onChange( function(value) { neutron_charge.setHiColor(value); } );
+				folder5.addColor( neutron_charge, "loColor").onChange( function(value) { neutron_charge.setLoColor(value); } );
+*/
+				folder1.open();
+				//folder2.open();
+				//folder3.open();
+                //folder4.open();
+                //folder5.open();
+                // folder6.open();
+			}
+
+			function animate() {
+				// Update the elapsed time to later provide to the shaders:
+				var delta = clock.getDelta();
+				tick += delta;
+				if ( tick < 0 ) tick = 0;
+				
+				// Tell WebGL to call the 'animate()' function for the next screen refresh:
+				requestAnimationFrame( animate );
+				
+				// Render the scene, and update the stats:
+				renderer.render( scene, camera );
+				//stats.update();
+			}
+		</script>
+	</body>
+</html>
