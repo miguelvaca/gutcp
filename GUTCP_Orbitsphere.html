@@ -34,7 +34,7 @@
 
 		<script>
 
-			if ( WEBGL.isWebGLAvailable() ) {
+			if ( WebGL.isWebGLAvailable() ) {
 
 				var container; //, stats;
 				var camera, scene, renderer, geometry, controls;
@@ -57,7 +57,7 @@
 				animate();
 			
 			} else {
-				var warning = WEBGL.getWebGLErrorMessage();
+				var warning = WebGL.getWebGLErrorMessage();
 				document.getElementById('container').appendChild(warning);
 			}
 			
