@@ -23,7 +23,8 @@
         </div>
 
 		<script src="https://threejs.org/build/three.js"></script>
-		<script src="https://threejs.org/examples/js/Detector.js"></script>
+		<script src="https://mrdoob.github.io/three.js/examples/js/WebGL.js"></script>
+		<!--script src="https://threejs.org/examples/js/Detector.js"></script-->
 		<!--script src="https://threejs.org/examples/js/libs/stats.min.js"></script-->
 		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
 		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
@@ -38,28 +39,33 @@
 
 		<script>
 
-			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+			if ( WEBGL.isWebGLAvailable() ) {
 
-			var container;  //, stats;
-			var camera, scene, renderer, geometry, controls;
-			var clock = new THREE.Clock();
-			var tick = 0;
+				var container;  //, stats;
+				var camera, scene, renderer, geometry, controls;
+				var clock = new THREE.Clock();
+				var tick = 0;
 			
-			var rhcpe;
-			var rhcpm;
+				var rhcpe;
+				var rhcpm;
 
-            var lhcpe;
-            var lhcpm;
+            	var lhcpe;
+            	var lhcpm;
 
-            var densitymap;
-            var blackSphere;
+            	var densitymap;
+            	var blackSphere;
 
-			var grid;
-            var effectController;
+				var grid;
+            	var effectController;
             
-			init();
-			animate();
-
+				init();
+				animate();
+				
+			} else {
+				var warning = WEBGL.getWebGLErrorMessage();
+				document.getElementById('container').appendChild(warning);
+			}
+			
 			function init() {
 
 				// A global structure used to store a couple of the adjustable parameters that don't easily
