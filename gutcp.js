@@ -936,7 +936,7 @@ class CVF {
 			this.cvfUniforms.normalElectronRadius = {value:10.0}; 
 			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 
 			//this.cvfUniforms.photonRadius = {value:100.0};
-			this.cvfUniforms.rhcp.value = false;
+			this.cvfUniforms.rhcp.value = true;
 		} else 
 		if(mode == 12) {
 			cvfGeo = CVF.createPhotonGeometry (2, 2, radius, THETA, PHI);
@@ -944,7 +944,7 @@ class CVF {
 			this.cvfUniforms.normalElectronRadius = {value:10.0}; 
 			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 
 			//this.cvfUniforms.photonRadius = {value:100.0};
-			this.cvfUniforms.rhcp.value = false;
+			this.cvfUniforms.rhcp.value = true;
 		} else 
 		if(mode == 13) {
 			cvfGeo = CVF.createY00Geometry (3, radius, THETA/5, THETA/5, PHI);

@@ -20,22 +20,23 @@
             >Dr Randell L Mills</a> - FDTD Simulation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
         </div>
 
-		<script src="https://threejs.org/build/three.js"></script>
-		<script src="https://threejs.org/examples/js/Detector.js"></script>
-		<script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
-		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
-		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-		<script src="https://threejs.org/examples/js/GPUComputationRenderer.js"></script>
-		<script src="gutcp.js"></script>
+		<!--script src="https://threejs.org/build/three.js"></script-->
+		<!--script src="https://threejs.org/examples/js/Detector.js"></script-->
+		<!--script src="https://threejs.org/examples/js/libs/stats.min.js"></script-->
+		<!--script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script-->
+		<!--script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script-->
+		<!--script src="https://threejs.org/examples/js/GPUComputationRenderer.js"></script-->
+		<!--script src="gutcp.js"></script-->
 
-		<!--script src="./three.js/build/three.js"></script-->
-		<!--script src="./three.js/examples/js/Detector.js"></script-->
-		<!--script src="./three.js/examples/js/libs/stats.min.js"></script-->
-		<!--script src="./three.js/examples/js/libs/dat.gui.min.js"></script-->
-		<!--script src="./three.js/examples/js/controls/OrbitControls.js"></script-->
-		<!--script src="./gutcp.js"></script-->
+		<script src="../three.js/build/three.js"></script>
+		<script src="../three.js/examples/js/Detector.js"></script>
+		<script src="../three.js/examples/js/libs/stats.min.js"></script>
+		<script src="../three.js/examples/js/libs/dat.gui.min.js"></script>
+		<script src="../three.js/examples/js/controls/OrbitControls.js"></script>
+		<script src="../three.js/examples/js/GPUComputationRenderer.js"></script>
+		<script src="./gutcp.js"></script>
 		
-		<!-- Electric Field Compute Shader -->
+		<!-- Electric Field Compute Shader. Solves electric field from surrounding magnetic fields. -->
 		<script id="ComputeShaderElectric" type="x-shader/x-fragment">
 
 			uniform float xDim; 	// X grid dimension 
@@ -56,21 +57,25 @@
 				vec4 Ef = vec4(0.0, 0.0, 0.0, 1.0);
 				
 				vec4 Hxp1 = texture2D( textureMagnetic, (gl_FragCoord.xy + vec2( 1.0, 0.0)) / resolution.xy);
+				//vec4 Hxm1 = texture2D( textureMagnetic, (gl_FragCoord.xy - vec2( 1.0, 0.0)) / resolution.xy); 
 				vec4 Hxm1 = texture2D( textureMagnetic, uv); 
 				
 				vec4 Hyp1 = texture2D( textureMagnetic, (gl_FragCoord.xy + vec2(xDim, 0.0)) / resolution.xy );
+				//vec4 Hym1 = texture2D( textureMagnetic, (gl_FragCoord.xy - vec2(xDim, 0.0)) / resolution.xy); 
 				vec4 Hym1 = texture2D( textureMagnetic, uv); 
 				
 				vec4 Hzp1 = texture2D( textureMagnetic, (gl_FragCoord.xy + vec2( 0.0, 1.0)) / resolution.xy  );
+				//vec4 Hzm1 = texture2D( textureMagnetic, (gl_FragCoord.xy - vec2( 0.0, 1.0)) / resolution.xy); 
 				vec4 Hzm1 = texture2D( textureMagnetic, uv); 
 				
 				E.x = (Hyp1.z - Hym1.z) - (Hzp1.y - Hzm1.y);
 				E.y = (Hzp1.x - Hzm1.x) - (Hxp1.z - Hxm1.z);
 				E.z = (Hxp1.y - Hxm1.y) - (Hyp1.x - Hym1.x);
 				
+				// Excitation signal:
 				if((gl_FragCoord.x > ((resolution.x - 1.4) / 2.0)) && (gl_FragCoord.x < ((resolution.x + 1.4) / 2.0)) 
 				&& (gl_FragCoord.y > ((resolution.y - 1.8) / 2.0)) && (gl_FragCoord.y < ((resolution.y + 1.8) / 2.0))) {
-					Ef = vec4(0.0*cos((time+uv.x)*6.0), 50.0*sin((time+uv.x)*36.0), 0.0*sin((time+uv.y)*2.0), 0.0);
+					Ef = vec4(50.0*cos((time+uv.x)*6.0), 50.0*sin((time+uv.x)*36.0), 0.0*sin((time+uv.y)*2.0), 0.0);
 				} else {
 					Ef = (texture2D( textureElectric, uv) + 0.5 * Ke * E) * texture2D( pam, uv ).z;
 				}
@@ -80,7 +85,7 @@
 			}
 		</script>
 
-		<!-- Magnetic Field Compute Shader -->
+		<!-- Magnetic Field Compute Shader. Solves magnetic field from surrounding electric fields. -->
 		<script id="ComputeShaderMagnetic" type="x-shader/x-fragment">
 
 			uniform float xDim; 	// X grid dimension 
@@ -101,12 +106,15 @@
 				vec4 Hf = vec4(0.0, 0.0, 0.0, 1.0);
 			
 				vec4 Exp1 = texture2D( textureElectric, uv); 
+				//vec4 Exp1 = texture2D( textureElectric, (gl_FragCoord.xy + vec2(1.0, 0.0)) / resolution.xy ); 
 				vec4 Exm1 = texture2D( textureElectric, (gl_FragCoord.xy - vec2(1.0, 0.0)) / resolution.xy );
 			
 				vec4 Eyp1 = texture2D( textureElectric, uv); 
+				//vec4 Eyp1 = texture2D( textureElectric, (gl_FragCoord.xy + vec2(xDim, 0.0)) / resolution.xy ); 
 				vec4 Eym1 = texture2D( textureElectric, (gl_FragCoord.xy - vec2(xDim, 0.0)) / resolution.xy );
 			
 				vec4 Ezp1 = texture2D( textureElectric, uv); 
+				//vec4 Ezp1 = texture2D( textureElectric, (gl_FragCoord.xy + vec2(0.0, 1.0)) / resolution.xy ); 
 				vec4 Ezm1 = texture2D( textureElectric, (gl_FragCoord.xy - vec2(0.0, 1.0)) / resolution.xy );
 			
 				H.x = (Ezp1.y - Ezm1.y) - (Eyp1.z - Eym1.z);
@@ -122,7 +130,7 @@
 
 		</script>
 
-		<!-- Electric Field Vertex Shader -->
+		<!-- Electric Field Vertex Shader, for rendering electric field vector to the screen. -->
 		<script id="VertexShaderElectricField" type="x-shader/x-vertex">
 
 			// For PI declaration:
@@ -153,7 +161,7 @@
 
 		</script>
 
-		<!-- Magnetic Field Vertex Shader -->
+		<!-- Magnetic Field Vertex Shader, for rendering magnetic field vector to the screen. -->
 		<script id="VertexShaderMagneticField" type="x-shader/x-vertex">
 
 			// For PI declaration:
@@ -398,6 +406,7 @@
 						hArray[ k + 3 ] = 1.0; // w = sqrt( x**2 + y**2 + z**2 ); i.e. Magnitude of vector.
 					}
 					
+					// Setup the PML (Perfectly Matched Layer)
 					var pArray = this.texturePML.image.data;
 					for ( var i = 0, k = 0, kl = pArray.length; k < kl; ++i, k += 4 ) {
 						var x = i % this.xDim;
@@ -431,9 +440,6 @@
 							pArray[ k + 2 ] = 1.0;
 						}
 						
-						//pArray[ k + 0 ] = 0.0; 
-						//pArray[ k + 1 ] = 0.0; 
-						//pArray[ k + 2 ] = 0.0; 
 						//pArray[ k + 3 ] = 1.0; 
 						//pArray[ k + 3 ] = Math.sqrt( pArray[k]**2 + pArray[k+1]**2 + pArray[k+2]**2 ); 
 						pArray[ k + 3 ] = (pArray[k] < pArray[k+1]) ? pArray[k] : pArray[k+1]; 
