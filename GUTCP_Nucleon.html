@@ -18,7 +18,9 @@
         </div>
 
 		<script src="https://threejs.org/build/three.js"></script>
-		<script src="https://threejs.org/examples/js/Detector.js"></script>
+		<script src="https://mrdoob.github.io/three.js/examples/js/WebGL.js"></script>
+		<!--script src="https://threejs.org/examples/js/Detector.js"></script>
+		<script src="https://threejs.org/examples/js/libs/stats.min.js"></script-->
 		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
 		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
 		<script src="./gutcp.js"></script>
@@ -32,21 +34,26 @@
 
 		<script>
 
-			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+			if ( WEBGL.isWebGLAvailable() ) {
 
-			var container; //, stats;
-			var camera, scene, renderer, geometry, controls;
-			var clock = new THREE.Clock();
-			var tick = 0;
+				var container; //, stats;
+				var camera, scene, renderer, geometry, controls;
+				var clock = new THREE.Clock();
+				var tick = 0;
 			
-            var densitymap;
-            var blackSphere;
+				var densitymap;
+				var blackSphere;
 
-			var grid;
-            var effectController;
-            
-			init();
-			animate();
+				var grid;
+				var effectController;
+			
+				init();
+				animate();
+				
+			} else {
+				var warning = WEBGL.getWebGLErrorMessage();
+				document.getElementById('container').appendChild(warning);
+			}
 
 			function init() {
 
