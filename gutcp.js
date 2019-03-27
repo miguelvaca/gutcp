@@ -617,7 +617,7 @@ class CVF {
 	}
 	
 	// Return an individual 3-element CVF vertex:
-	// mode    = 1:RH, 2:LH
+	// mode    = 1:RH, 2:LH, 3: Rotate about Z axis
 	// field   = 1:Electric, 2:Magnetic
 	// radius  = CVF radius (typically 100.0)
 	// i_theta = iterator for theta
@@ -630,7 +630,7 @@ class CVF {
 		var sin_theta = Math.sin(2.0 * Math.PI * i_theta / THETA);
 
 		var cvfRot = [];
-		if(mode == 3) {
+		if(mode == 1) {
 			// Setup the 3x3 rotation matrix from GUTCP Eq(V-4) Right-Handed
 			cvfRot[0+0] = ( 0.5 + 0.5*cos_theta);
 			cvfRot[0+1] = ( 0.5 - 0.5*cos_theta);
