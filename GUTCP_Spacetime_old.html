@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+	<!-- @file   : GUTCP_Spacetime.html			-->
+	<!-- @author : J Miguel Vaca 					-->
+	<!-- @remark : This webpage uses WebGL to visualise compression/expansion of spacetime due to a photon -->
+	<head>
+		<title>GUTCP Orbitsphere CVF Visualisations</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" href="css/base.css" rel="stylesheet"/>
+		<link type="text/css" href="css/visualisation.css" rel="stylesheet"/>
+	</head>
+	<body>
+        <div id="info">
+            <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 1.5 - Generation of the Orbitsphere CVFs</a>
+            <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
+        </div>
+
+		<script src="https://threejs.org/build/three.js"></script>
+		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
+		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+		<script src="./gutcp.js"></script>
+
+		<script>
+
+			var container; //, stats;
+			var camera, scene, renderer, geometry, controls;
+			var clock = new THREE.Clock();
+			var tick = 0;
+
+			var becvf;
+			var ocvf;
+
+			var y103;
+			var y109;
+
+			var densitymap;
+			var blackSphere;
+
+			var grid;
+			var effectController;
+
+			init();
+			animate();
+			
+			function init() {
+
+				// A global structure used to store a couple of the adjustable parameters that don't easily
+				// belong somewhere else. Not pretty, but does the trick.
+				effectController = {
+                    waveSpeed: 			0.50,
+					wavesPerRing: 		1.0,
+                    enableBlkSphere: 	false,
+                    background: 		[0, 0, 0]
+				};
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
+				camera.position.y = 120;
+				camera.position.z = 400;
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color(effectController.background[0]/255.0, effectController.background[1]/255.0, effectController.background[2]/255.0);
+
+				//renderer = new THREE.WebGLRenderer({antialias:true});
+				renderer = new THREE.WebGLRenderer({antialias:true});
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+				//stats = new Stats();
+				//container.appendChild( stats.dom );
+				window.addEventListener( 'resize', onWindowResize, false );
+				
+				// Add an axis:
+				var axis = new THREE.AxisHelper(200);
+				scene.add(axis);
+				
+				// Create and load the grid into the scene:
+				grid = new Grid();
+				grid.insertScene(scene);
+				grid.setBrightness(0.30);
+				grid.setBackground(effectController.background);
+				
+				// Create and load a black sphere into the scene that is useful to hide the far-half of the 
+				// geometries. The radius of the black sphere is 97, as the default radius of most of the 
+				// visualisations are 100.
+                init_BlackSphere();
+				
+				// Create the BECVF visualisation and insert it into the scene:
+				becvf = new CVF(1, 100.0, 60, 60);
+				becvf.setVisibility(false);
+				becvf.setBackground(effectController.background);
+				becvf.insertScene(scene);
+				
+				// Create the OCVF visualisation and insert it into the scene:
+				ocvf = new CVF(2, 100.0, 60, 60);
+				ocvf.setColor([0, 0, 255, 1.0]);
+				ocvf.setBackground(effectController.background);
+				ocvf.setVisibility(false);
+				ocvf.insertScene(scene);
+				
+				// Create the Y00 visualisation geometry and insert it into the scene:
+				y103 = new CVF(3, 100.0, 60, 60);
+				y103.setColor([0, 255, 0, 1.0]);
+				y103.setBackground(effectController.background);
+				y103.setVisibility(true);
+				y103.setAnimate(true);
+				y103.insertScene(scene);
+				
+				// Create the orthogonal Y00 visualisation geometry and insert it into the scene:
+				y109 = new CVF(4, 100.0, 60, 60);
+				y109.setColor([255, 0, 255, 1.0]);
+				y109.setBackground(effectController.background);
+				y109.setVisibility(false);
+				y109.insertScene(scene);
+				
+				// Create the Y00 density map simulator and insert its geometry into the scene:
+				densitymap = new DensityMap();
+				densitymap.insertScene(scene);
+				densitymap.setVisibility(false);
+				densitymap.reset();
+				
+				// Add all the controls for the various visualisations
+                initGUI();
+                //addTextOutput("MB","#f08","#201");
+			}
+			
+			function init_BlackSphere() {
+				// Create and insert a black sphere that can be used to obscure the back-half of the geometries.
+				// Make its radius 97, which is less than the 100 radius of the rest of the geometries.
+				geometry = new THREE.SphereBufferGeometry( 97, 32, 32 );
+				var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
+				blackSphere = new THREE.Mesh( geometry, material );
+				blackSphere.visible = false;
+				scene.add( blackSphere );            
+			}
+			
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				
+				// TODO - need to notify scene object shaders (via uniforms) here if required!
+				// becvfUniforms.cameraConstant.value = getCameraConstant( camera );
+			}
+
+			function getCameraConstant( camera ) {
+				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+			}
+
+			function initGUI() {
+				// Create the parameter control panel (on the right)
+				var gui = new dat.GUI();
+
+				// Add a folder to hold all the common parameters:
+				var folder1 = gui.addFolder( 'Common parameters' );
+                folder1.add( effectController, "waveSpeed", 0.0, 3.0, 0.01 ).onChange( function(value) { 
+                	becvf.cvfUniforms.waveSpeed.value = value; 
+                	ocvf.cvfUniforms.waveSpeed.value = value;
+					y103.cvfUniforms.waveSpeed.value = value;
+					y109.cvfUniforms.waveSpeed.value = value;
+                } );
+				folder1.add( effectController, "wavesPerRing", 1.0, 10.0, 1.00 ).onChange( function(value) { 
+                	becvf.cvfUniforms.wavesPerRing.value = value; 
+                	ocvf.cvfUniforms.wavesPerRing.value = value;
+					y103.cvfUniforms.wavesPerRing.value = value;
+					y109.cvfUniforms.wavesPerRing.value = value;
+                } );
+				folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
+                folder1.add( effectController, "enableBlkSphere" ).onChange( function(value) { blackSphere.visible = value; } );
+				folder1.addColor( effectController, "background").onChange( function(value) { 
+					scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
+                	becvf.setBackground(value);
+                	ocvf.setBackground(value);
+                	y103.setBackground(value);
+                	y109.setBackground(value);
+					grid.setBackground(value);
+                } );
+
+				// Add a folder for the BECVF parameters:
+				var folder2 = gui.addFolder( 'BECVF - Basis Element CVF (Eq 1.84)' );
+                folder2.add( becvf, "visibility" ).onChange( function(value) { becvf.setVisibility(value); } );
+				folder2.add( becvf, "animate" ).onChange( function(value) { becvf.setAnimate(value); } );
+				folder2.add( becvf, "swapAnimDir" ).onChange( function(value) { becvf.swapAnimationDirection(value); } );
+				folder2.add( becvf, "theta", 60, 180, 30).onChange( function(value) { becvf.loadNewGeometry(1, 100.0, value, becvf.phi); } );
+				folder2.add( becvf, "phi", 30, 180, 30).onChange( function(value) { becvf.loadNewGeometry(1, 100.0, becvf.theta, value); } );
+				folder2.add( becvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { 
+					becvf.cvfUniforms.scale.value = value; 
+					//canvas.strokeText('Miguel', 100, 100);
+				} );
+				folder2.addColor( becvf, "color").onChange( function(value) { becvf.setColor(value); } );
+
+				// Add a folder for the OCVF parameters:
+				var folder3 = gui.addFolder( 'OCVF - Orbitsphere CVF (Eq 1.95)' );
+                folder3.add( ocvf, "visibility" ).onChange( function(value) { ocvf.setVisibility(value); } );
+				folder3.add( ocvf, "animate" ).onChange( function(value) { ocvf.setAnimate(value); } );
+				folder3.add( ocvf, "swapAnimDir" ).onChange( function(value) { ocvf.swapAnimationDirection(value); } );
+				folder3.add( ocvf, "theta", 60, 180, 30).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, value, ocvf.phi); } );
+				folder3.add( ocvf, "phi", 30, 180, 30).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, ocvf.theta, value); } );
+				folder3.add( ocvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { ocvf.cvfUniforms.scale.value = value; } );
+				folder3.add( ocvf, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { ocvf.cvfUniforms.sphere.value = value; } );
+				folder3.addColor( ocvf, "color").onChange( function(value) { ocvf.setColor(value); } );
+
+				// Add a folder for the Y00 Eq 1.103 parameters:
+                var folder4 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
+                folder4.add( y103, "visibility" ).onChange( function(value) { y103.setVisibility(value); } );
+                folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
+				folder4.add( y103, "N_M", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, y103.phi); } );
+				folder4.add( y103, "phi", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, y103.N_M, value); } );
+				folder4.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
+				//folder4.add( y103, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { y103.cvfUniforms.sphere.value = value; } );
+				//folder4.add( y103, "pole_theta", 0.0, 360.0, 1.0).onChange( function(value) { 
+				//	y103.cvfUniforms.pole.value = [value]; 	"   vec3  pole    = vec3(100.0*sin(pole_theta*0.01745)*sin(pole_psi*0.01745), 100.0*cos(pole_theta*0.01745), 100.0*sin(pole_theta*0.01745)*cos(pole_psi*0.01745)); \n" + } );
+				//folder4.add( y103, "pole_psi", 0.0, 360.0, 1.0).onChange( function(value) { y103.cvfUniforms.pole_psi.value = value; } );
+				folder4.addColor( y103, "color").onChange( function(value) { y103.setColor(value); } );
+
+				// Add a folder for the Y00 Eq 1.109 parameters:
+                var folder5 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.109)' );
+                folder5.add( y109, "visibility" ).onChange( function(value) { y109.setVisibility(value); } );
+                folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
+				folder5.add( y109, "N_M", 30, 180, 30).onChange( function(value) { y109.loadNewGeometry(4, 100.0, value, y109.phi); } );
+				folder5.add( y109, "phi", 30, 180, 30).onChange( function(value) { y109.loadNewGeometry(4, 100.0, y109.N_M, value); } );
+				folder5.add( y109, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y109.cvfUniforms.scale.value = value; } );
+				folder5.addColor( y109, "color").onChange( function(value) { y109.setColor(value); } );
+
+				// Add a folder for the Y00 Eq 1.19-20 current density map parameters:
+                var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
+                folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); } );
+                folder6.add( densitymap, "wireframe" ).onChange( function(value) { densitymap.material.wireframe = value; densitymap.material.needsUpdate = true; } );
+				folder6.add( densitymap, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.contrast.value = value; } );
+				folder6.add( densitymap, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.shape.value = value; } );
+				folder6.add( densitymap, "N", 12, 120, 12 ).onChange( function(value)    { densitymap.N = value; densitymap.reset(); } );
+				folder6.add( densitymap, "M", 12, 120, 12 ).onChange( function(value)    { densitymap.M = value; densitymap.reset(); } );
+				folder6.add( densitymap, "PHI", 60, 360, 20 ).onChange( function(value) { densitymap.PHI = value; densitymap.reset(); } );
+				folder6.add( densitymap, "pause");
+				folder6.addColor( densitymap, "hiColor").onChange( function(value) { densitymap.setHiColor(value); } );
+				folder6.addColor( densitymap, "loColor").onChange( function(value) { densitymap.setLoColor(value); } );
+
+				// folder1.open();
+				// folder2.open();
+				// folder3.open();
+                // folder4.open();
+                // folder5.open();
+                // folder6.open();
+			}
+
+			function animate() {
+				// Update the elapsed time to later provide to the shaders:
+				var delta = clock.getDelta();
+				tick += delta;
+				if ( tick < 0 ) tick = 0;
+				
+				// Update the material uniforms with the time, to pass on the elapsed time:
+				becvf.addTime(delta);
+				ocvf.addTime(delta);
+				y103.addTime(delta);
+				y109.addTime(delta);
+				
+				// Process up-to 400 geometric points in density bins during each refresh cycle. A value of 400 
+				// seems to be effective compromise.
+				densitymap.process(400);
+
+				// Tell WebGL to call the 'animate()' function for the next screen refresh:
+				requestAnimationFrame( animate );
+				
+				// Render the scene, and update the stats:
+				renderer.render( scene, camera );
+				//stats.update();
+			}
+		</script>
+	</body>
+</html>
