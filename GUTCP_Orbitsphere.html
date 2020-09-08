@@ -106,7 +106,7 @@
 				ocvf.insertScene(scene);
 				
 				// Create the Y00 visualisation geometry and insert it into the scene:
-				y103 = new CVF(3, 100.0, 60, 60);
+				y103 = new CVF(3, 100.0, 12, 60);
 				y103.setColor([0, 255, 0, 1.0]);
 				y103.setBackground(effectController.background);
 				y103.setVisibility(true);
@@ -114,7 +114,7 @@
 				y103.insertScene(scene);
 				
 				// Create the orthogonal Y00 visualisation geometry and insert it into the scene:
-				y109 = new CVF(4, 100.0, 60, 60);
+				y109 = new CVF(4, 100.0, 12, 60);
 				y109.setColor([255, 0, 255, 1.0]);
 				y109.setBackground(effectController.background);
 				y109.setVisibility(false);
@@ -234,7 +234,7 @@
                 var folder4 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
                 folder4.add( y103, "visibility" ).onChange( function(value) { y103.setVisibility(value); } );
                 folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
-				folder4.add( y103, "N_M", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, y103.phi); } );
+				folder4.add( y103, "N_M", 6, 36, 6).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, y103.phi); } );
 				folder4.add( y103, "phi", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, y103.N_M, value); } );
 				folder4.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
 				//folder4.add( y103, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { y103.cvfUniforms.sphere.value = value; } );
@@ -247,7 +247,7 @@
                 var folder5 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.109)' );
                 folder5.add( y109, "visibility" ).onChange( function(value) { y109.setVisibility(value); } );
                 folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
-				folder5.add( y109, "N_M", 30, 180, 30).onChange( function(value) { y109.loadNewGeometry(4, 100.0, value, y109.phi); } );
+				folder5.add( y109, "N_M", 6, 36, 6).onChange( function(value) { y109.loadNewGeometry(4, 100.0, value, y109.phi); } );
 				folder5.add( y109, "phi", 30, 180, 30).onChange( function(value) { y109.loadNewGeometry(4, 100.0, y109.N_M, value); } );
 				folder5.add( y109, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y109.cvfUniforms.scale.value = value; } );
 				folder5.addColor( y109, "color").onChange( function(value) { y109.setColor(value); } );

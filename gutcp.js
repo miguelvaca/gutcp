@@ -630,7 +630,7 @@ class CVF {
 		var sin_theta = Math.sin(2.0 * Math.PI * i_theta / THETA);
 
 		var cvfRot = [];
-		if(mode == 1) {
+		if(mode == 3) {
 			// Setup the 3x3 rotation matrix from GUTCP Eq(V-4) Right-Handed
 			cvfRot[0+0] = ( 0.5 + 0.5*cos_theta);
 			cvfRot[0+1] = ( 0.5 - 0.5*cos_theta);
@@ -641,7 +641,7 @@ class CVF {
 			cvfRot[6+0] = ( 0.70711*sin_theta);
 			cvfRot[6+1] = (-0.70711*sin_theta);
 			cvfRot[6+2] = (cos_theta);
-		} else if(mode == 2) {
+		} else if(mode == 4) {
 			// Setup the 3x3 rotation matrix from GUTCP Eq(V-9) Left-Handed
 			cvfRot[0+0] = ( 0.5 + 0.5*cos_theta);
 			cvfRot[0+1] = (-0.5 + 0.5*cos_theta);
@@ -652,10 +652,21 @@ class CVF {
 			cvfRot[6+0] = (-0.70711*sin_theta);
 			cvfRot[6+1] = (-0.70711*sin_theta);
 			cvfRot[6+2] = (cos_theta);
+		} else if(mode == 1) {
+			// Setup the 3x3 rotation matrix about Z axis:
+			cvfRot[0+0] = (cos_theta);
+			cvfRot[0+1] = (sin_theta);
+			cvfRot[0+2] = (0.0);
+			cvfRot[3+0] = (-sin_theta);
+			cvfRot[3+1] = (cos_theta); 
+			cvfRot[3+2] = (0.0);
+			cvfRot[6+0] = (0.0);
+			cvfRot[6+1] = (0.0);
+			cvfRot[6+2] = (1.0);
 		} else {
 			// Setup the 3x3 rotation matrix about Z axis:
 			cvfRot[0+0] = (cos_theta);
-			cvfRot[0+1] = (-sin_theta);
+			cvfRot[0+1] = (-sin_theta); // TODO - fix this bug!
 			cvfRot[0+2] = (0.0);
 			cvfRot[3+0] = (sin_theta);
 			cvfRot[3+1] = (cos_theta); 
@@ -892,7 +903,7 @@ class CVF {
 		} else 
 		// assume mode == 3 or 4 if we get here
 		if((mode == 3) || (mode == 4)) {
-			cvfGeo = CVF.createY00Geometry (mode-2, radius, THETA/5, THETA/5, PHI);
+			cvfGeo = CVF.createY00Geometry (mode-2, radius, THETA, THETA, PHI); // THETA/5, THETA/5, PHI);
 		} else 
 		if(mode == 5) {
 			cvfGeo = CVF.createPhotonGeometry (1, 1, radius, THETA, PHI);
@@ -1579,6 +1590,194 @@ class Grid {
 		this.geometry = new THREE.BufferGeometry();
 
 		// Storage for all the locations for the BECVF:
+		var positions = new Float32Array( 6 * ((this.separators+1)**2) * 3 );
+		var p = 0;
+		var x = 0.0;
+		var y = 0.0;
+		var z = 0.0;
+
+		// Populate the grid positions:
+		for ( var i = 0; i <= this.separators; i++ ) {
+			x = (i * spacing) - (this.separators * spacing * 0.5);
+			for ( var j = 0; j <= this.separators; j++ ) {
+				y = (j * spacing) - (this.separators * spacing * 0.5);
+
+				positions[ p++ ] = x;
+				positions[ p++ ] = y;
+				positions[ p++ ] = -(this.separators * spacing * 0.5);
+
+				positions[ p++ ] = x;
+				positions[ p++ ] = y;
+				positions[ p++ ] = (this.separators * spacing * 0.5);
+			}
+		}
+
+		for ( var i = 0; i <= this.separators; i++ ) {
+			x = (i * spacing) - (this.separators * spacing * 0.5);
+			for ( var j = 0; j <= this.separators; j++ ) {
+				y = (j * spacing) - (this.separators * spacing * 0.5);
+
+				positions[ p++ ] = y;
+				positions[ p++ ] = -(this.separators * spacing * 0.5);
+				positions[ p++ ] = x;
+
+				positions[ p++ ] = y;
+				positions[ p++ ] = (this.separators * spacing * 0.5);
+				positions[ p++ ] = x;
+			}
+		}
+
+		for ( var i = 0; i <= this.separators; i++ ) {
+			x = (i * spacing) - (this.separators * spacing * 0.5);
+			for ( var j = 0; j <= this.separators; j++ ) {
+				y = (j * spacing) - (this.separators * spacing * 0.5);
+
+				positions[ p++ ] = -(this.separators * spacing * 0.5);
+				positions[ p++ ] = x;
+				positions[ p++ ] = y;
+
+				positions[ p++ ] = (this.separators * spacing * 0.5);
+				positions[ p++ ] = x;
+				positions[ p++ ] = y;
+			}
+		}
+
+		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+		
+		this.gridContrast = 0.9;
+		this.background = [0, 0, 0];
+		
+		this.gridUniforms = { 
+			gridContrast: { value: this.gridContrast },
+			background: 	{ value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) }
+		};
+	
+		// ShaderMaterial
+		this.material = new THREE.ShaderMaterial( {
+												uniforms:       this.gridUniforms,
+												linewidth:      2,
+												vertexShader:   gridVertexShader,
+												fragmentShader: cvfFragmentShader
+												} );                                                        
+		this.material.extensions.drawBuffers = true;
+	
+		this.gridGeometry = new THREE.LineSegments( this.geometry, this.material );
+		this.gridGeometry.matrixAutoUpdate = false;
+		this.gridGeometry.updateMatrix();
+	}
+	
+	generateBoundary() {
+		// Create a two line-squares, followed by four lines after.
+		var positions = new Float32Array( 24*3 ); // 12 boundary lines require 2 vertices each, 3 floats per vertex
+		var x = 0.0;
+		var y = 0.0;
+		var p = 0;
+		
+		for ( var i = 0; i < 2; i++ ) {
+			x = -this.width * 0.5 + i * this.width;
+			for ( var j = 0; j < 2; j++ ) {
+				y = -this.height * 0.5 + j * this.height;
+				
+				positions[p++] = x;
+				positions[p++] = y;
+				positions[p++] = -this.depth * 0.5;
+		
+				positions[p++] = x;
+				positions[p++] = y;
+				positions[p++] = this.depth * 0.5;
+			}
+		}
+		
+		for ( var i = 0; i < 2; i++ ) {
+			x = -this.depth * 0.5 + i * this.depth;
+			for ( var j = 0; j < 2; j++ ) {
+				y = -this.height * 0.5 + j * this.height;
+				
+				positions[p++] = -this.width * 0.5;
+				positions[p++] = y;
+				positions[p++] = x;
+		
+				positions[p++] = this.width * 0.5;
+				positions[p++] = y;
+				positions[p++] = x;
+			}
+		}
+		
+		for ( var i = 0; i < 2; i++ ) {
+			x = -this.width * 0.5 + i * this.width;
+			for ( var j = 0; j < 2; j++ ) {
+				y = -this.depth * 0.5 + j * this.depth;
+				
+				positions[p++] = x;
+				positions[p++] = -this.height * 0.5;
+				positions[p++] = y;
+		
+				positions[p++] = x;
+				positions[p++] = this.height * 0.5;
+				positions[p++] = y;
+			}
+		}
+		
+		this.geometry = new THREE.BufferGeometry();
+		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+		this.gridContrast = 0.9;
+		this.background = [0, 0, 0];
+		
+		this.gridUniforms = { 
+			gridContrast: { value: this.gridContrast },
+			background: 	{ value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) }
+		};
+		
+		// ShaderMaterial
+		this.material = new THREE.ShaderMaterial( {
+												uniforms:       this.gridUniforms,
+												linewidth:      2,
+												vertexShader:   gridVertexShader,
+												fragmentShader: cvfFragmentShader
+												} );                                                        
+		this.material.extensions.drawBuffers = true;
+		
+		this.gridGeometry = new THREE.LineSegments( this.geometry, this.material );
+		this.gridGeometry.matrixAutoUpdate = false;
+		this.gridGeometry.updateMatrix();
+	}
+	
+	setBackground(background) {
+		this.gridUniforms.background.value = [background[0]/255.0, background[1]/255.0, background[2]/255.0, 1.0];
+	}
+	
+	// Set the brightness of the grid. Make it invisible if brightness is 0.05 or less.
+	setBrightness(brightness) {
+		this.gridContrast = brightness;
+		this.gridUniforms.gridContrast.value = brightness;
+		if(brightness >= 0.05) {
+			this.gridGeometry.visible = true;
+		} else {
+			this.gridGeometry.visible = false;
+		}
+	}
+	
+	// Insert the geometries into the scenegraph's sceneObject:
+	insertScene(sceneObject) {
+		sceneObject.add(this.gridGeometry);
+	}
+}
+
+class SpacetimeGrid {
+	constructor() {
+		this.width = 200;
+		this.height = 200;
+		this.depth = 200;
+		this.separators = 3;
+		//this.generateBoundary();
+		this.generateFull();
+	}
+	
+	generateFull() {
+		var spacing = this.width / this.separators; // pixels
+		this.geometry = new THREE.BufferGeometry();
+
+		// Storage for all the locations for the grid:
 		var positions = new Float32Array( 6 * ((this.separators+1)**2) * 3 );
 		var p = 0;
 		var x = 0.0;
