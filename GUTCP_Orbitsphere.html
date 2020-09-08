@@ -110,7 +110,8 @@
 				y103.setColor([0, 255, 0, 1.0]);
 				y103.setBackground(effectController.background);
 				y103.setVisibility(true);
-				y103.setAnimate(true);
+				y103.animate = true;
+				y103.setAnimate(y103.animate);
 				y103.insertScene(scene);
 				
 				// Create the orthogonal Y00 visualisation geometry and insert it into the scene:
@@ -118,6 +119,8 @@
 				y109.setColor([255, 0, 255, 1.0]);
 				y109.setBackground(effectController.background);
 				y109.setVisibility(false);
+				y109.animate = false;
+				y109.setAnimate(y109.animate);
 				y109.insertScene(scene);
 				
 				// Create the Y00 density map simulator and insert its geometry into the scene:
@@ -125,6 +128,7 @@
 				densitymap.insertScene(scene);
 				densitymap.setVisibility(false);
 				densitymap.reset();
+				densitymap.pause();
 				
 				// Add all the controls for the various visualisations
                 initGUI();
@@ -234,7 +238,7 @@
                 var folder4 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.103)' );
                 folder4.add( y103, "visibility" ).onChange( function(value) { y103.setVisibility(value); } );
                 folder4.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
-				folder4.add( y103, "N_M", 6, 36, 6).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, y103.phi); } );
+				folder4.add( y103, "N_M", 4, 36, 1).onChange( function(value) { y103.loadNewGeometry(3, 100.0, value, y103.phi); } );
 				folder4.add( y103, "phi", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 100.0, y103.N_M, value); } );
 				folder4.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
 				//folder4.add( y103, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { y103.cvfUniforms.sphere.value = value; } );
@@ -247,19 +251,19 @@
                 var folder5 = gui.addFolder( 'Y00 - Current Pattern Fn (Eq 1.109)' );
                 folder5.add( y109, "visibility" ).onChange( function(value) { y109.setVisibility(value); } );
                 folder5.add( y109, "animate" ).onChange( function(value) { y109.setAnimate(value); } );
-				folder5.add( y109, "N_M", 6, 36, 6).onChange( function(value) { y109.loadNewGeometry(4, 100.0, value, y109.phi); } );
+				folder5.add( y109, "N_M", 4, 36, 1).onChange( function(value) { y109.loadNewGeometry(4, 100.0, value, y109.phi); } );
 				folder5.add( y109, "phi", 30, 180, 30).onChange( function(value) { y109.loadNewGeometry(4, 100.0, y109.N_M, value); } );
 				folder5.add( y109, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y109.cvfUniforms.scale.value = value; } );
 				folder5.addColor( y109, "color").onChange( function(value) { y109.setColor(value); } );
 
 				// Add a folder for the Y00 Eq 1.19-20 current density map parameters:
                 var folder6 = gui.addFolder( 'Y00 - Current Density Func (Fig 1.19-20)' );
-                folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); } );
+                folder6.add( densitymap, "visibility" ).onChange( function(value) { densitymap.setVisibility(value); densitymap.hasWork = value; } );
                 folder6.add( densitymap, "wireframe" ).onChange( function(value) { densitymap.material.wireframe = value; densitymap.material.needsUpdate = true; } );
 				folder6.add( densitymap, "contrast", 0.1, 5.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.contrast.value = value; } );
 				folder6.add( densitymap, "shape", 0.0, 2.0, 0.10 ).onChange( function(value) { densitymap.densitymapUniforms.shape.value = value; } );
-				folder6.add( densitymap, "N", 12, 120, 12 ).onChange( function(value)    { densitymap.N = value; densitymap.reset(); } );
-				folder6.add( densitymap, "M", 12, 120, 12 ).onChange( function(value)    { densitymap.M = value; densitymap.reset(); } );
+				folder6.add( densitymap, "N", 12, 120, 2 ).onChange( function(value)    { densitymap.N = value; densitymap.reset(); } );
+				folder6.add( densitymap, "M", 12, 120, 2 ).onChange( function(value)    { densitymap.M = value; densitymap.reset(); } );
 				folder6.add( densitymap, "PHI", 60, 360, 20 ).onChange( function(value) { densitymap.PHI = value; densitymap.reset(); } );
 				folder6.add( densitymap, "pause");
 				folder6.addColor( densitymap, "hiColor").onChange( function(value) { densitymap.setHiColor(value); } );
