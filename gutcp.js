@@ -630,7 +630,7 @@ class CVF {
 		var sin_theta = Math.sin(2.0 * Math.PI * i_theta / THETA);
 
 		var cvfRot = [];
-		if(mode == 3) {
+		if(mode == 1) {
 			// Setup the 3x3 rotation matrix from GUTCP Eq(V-4) Right-Handed
 			cvfRot[0+0] = ( 0.5 + 0.5*cos_theta);
 			cvfRot[0+1] = ( 0.5 - 0.5*cos_theta);
@@ -641,7 +641,7 @@ class CVF {
 			cvfRot[6+0] = ( 0.70711*sin_theta);
 			cvfRot[6+1] = (-0.70711*sin_theta);
 			cvfRot[6+2] = (cos_theta);
-		} else if(mode == 4) {
+		} else if(mode == 2) {
 			// Setup the 3x3 rotation matrix from GUTCP Eq(V-9) Left-Handed
 			cvfRot[0+0] = ( 0.5 + 0.5*cos_theta);
 			cvfRot[0+1] = (-0.5 + 0.5*cos_theta);
@@ -652,7 +652,7 @@ class CVF {
 			cvfRot[6+0] = (-0.70711*sin_theta);
 			cvfRot[6+1] = (-0.70711*sin_theta);
 			cvfRot[6+2] = (cos_theta);
-		} else if(mode == 1) {
+		} else if(mode == 3) {
 			// Setup the 3x3 rotation matrix about Z axis:
 			cvfRot[0+0] = (cos_theta);
 			cvfRot[0+1] = (sin_theta);
