@@ -122,6 +122,7 @@ var electronExcitedVertexShader =
 	"		float photon_angle = PI * (1.0 - (abs(zOffset)/(normalElectronRadius + photonRadius)));	\n" + 
 	" 		if(initial_angle < photon_angle) { \n" + 
 	" 			newPosition *= (excitedElectronRadius / normalElectronRadius); \n" + 
+	" 			vColor = vec4( color[0], color[1], color[2], 0.2*color[3] ); \n" + 
 	" 		}; \n" +
 	" 	} \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
@@ -531,8 +532,8 @@ class CVF {
 		} else {
 			// Setup the OCVF basis current loop:
 			phi = 2.0 * Math.PI * i_phi / PHI; // + 0.5 * Math.PI;  // Half-PI phase addition is to correct a kink visual artefact
-			cvf = [(0.707*radius * Math.cos(phi)), 
-				   (0.707*radius * Math.cos(phi)), 
+			cvf = [(0.70711*radius * Math.cos(phi)), 
+				   (0.70711*radius * Math.cos(phi)), 
 				   (-radius * Math.sin(phi))];
 		}
 	
@@ -958,7 +959,7 @@ class CVF {
 			this.cvfUniforms.rhcp.value = true;
 		} else 
 		if(mode == 13) {
-			cvfGeo = CVF.createY00Geometry (3, radius, THETA/5, THETA/5, PHI);
+			cvfGeo = CVF.createY00Geometry (3, radius, THETA, THETA, PHI);
 			vertex_shader = electronExcitedVertexShader;
 			this.cvfUniforms.normalElectronRadius = {value:10.0}; 
 			this.cvfUniforms.excitedElectronRadius = {value:20.0}; 

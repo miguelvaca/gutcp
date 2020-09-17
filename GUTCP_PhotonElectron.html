@@ -79,9 +79,10 @@
 				scene = new THREE.Scene();
 				scene.background = new THREE.Color(effectController.background[0]/255.0, effectController.background[1]/255.0, effectController.background[2]/255.0);
 
-				renderer = new THREE.WebGLRenderer();
+				renderer = new THREE.WebGLRenderer( { alpha : true, premultipliedAlpha : false } );
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
+				//renderer.setClearAlpha(1.0);
 				container.appendChild( renderer.domElement );
 
 				controls = new THREE.OrbitControls( camera, renderer.domElement );
@@ -95,10 +96,10 @@
 				grid.setBackground(effectController.background);
 				
 				// Create the Y00 visualisation geometry and insert it into the scene:
-				y103 = new CVF(13, 10.0, 60, 60);
+				y103 = new CVF(13, 10.0, 12, 30);
 				y103.setColor([0, 255, 0, 1.0]);
 				y103.setBackground(effectController.background);
-				y103.setAnimate(true);
+				y103.setAnimate(false);
 				y103.setVisibility(true);
 				y103.insertScene(scene);
 				
@@ -249,8 +250,8 @@
                 folder2.add( y103, "visibility" ).onChange( function(value) { y103.setVisibility(value); } );
                 folder2.add( y103, "animate" ).onChange( function(value) { y103.setAnimate(value); } );
 				folder2.add( y103, "swapAnimDir" ).onChange( function(value) { y103.swapAnimationDirection(value); } );
-				folder2.add( y103, "N_M", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 10.0, value, y103.phi); } );
-				folder2.add( y103, "phi", 30, 180, 30).onChange( function(value) { y103.loadNewGeometry(3, 10.0, y103.N_M, value); } );
+				folder2.add( y103, "N_M", 6, 30, 2).onChange( function(value) { y103.loadNewGeometry(13, 10.0, value, y103.phi); } );
+				folder2.add( y103, "phi", 30, 90, 10).onChange( function(value) { y103.loadNewGeometry(13, 10.0, y103.N_M, value); } );
 				folder2.add( y103, "scale", 0.2, 5.0, 0.1).onChange( function(value) { y103.cvfUniforms.scale.value = value; } );
 				folder2.addColor( y103, "color").onChange( function(value) { y103.setColor(value); } );
 
