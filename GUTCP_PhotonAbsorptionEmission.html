@@ -98,7 +98,7 @@
 				y103.insertScene(scene);
 				
 				// Create the lhtse visualisation and insert it into the scene:
-				lhtse = new CVF(18, 20.0, 60, 30);
+				lhtse = new CVF(18, 20.0, 60, 60);
 				lhtse.setColor([255, 0, 0]);
 				lhtse.setBackground(effectController.background);
 				lhtse.setSpeed(effectController.waveSpeed); 
@@ -116,7 +116,7 @@
 				//rhcpm.insertScene(scene);
 				
 				// Create the lhcpe visualisation geometry and insert it into the scene:
-				lhcpe = new CVF(11, 100.0, 60, 30);
+				lhcpe = new CVF(11, 100.0, 60, 60);
 				lhcpe.setColor([255, 0, 0]);
 				lhcpe.setBackground(effectController.background);
 				lhcpe.setSpeed(effectController.waveSpeed); 
@@ -125,7 +125,7 @@
 				lhcpe.insertScene(scene);
 				
 				// Create the lhcpm visualisation geometry and insert it into the scene:
-				lhcpm = new CVF(12, 101.0, 60, 30);
+				lhcpm = new CVF(12, 101.0, 60, 60);
 				lhcpm.setColor([0, 0, 255]);
 				lhcpm.setBackground(effectController.background);
 				lhcpm.setSpeed(effectController.waveSpeed); 
@@ -265,7 +265,7 @@
                 //folder5.add( lhcpe, "animate" ).onChange( function(value) { lhcpe.setAnimate(value); } );
 				//folder5.add( lhcpe, "swapAnimDir" ).onChange( function(value) { lhcpe.swapAnimationDirection(value); } );
 				folder5.add( lhcpe, "theta", 60, 180, 30).onChange( function(value) { lhcpe.loadNewGeometry(11, 100.0, value, lhcpe.phi); } );
-				folder5.add( lhcpe, "phi", 30, 60, 30).onChange( function(value) { lhcpe.loadNewGeometry(11, 100.0, lhcpe.theta, value); } );
+				folder5.add( lhcpe, "phi", 30, 90, 30).onChange( function(value) { lhcpe.loadNewGeometry(11, 100.0, lhcpe.theta, value); } );
 				//folder5.add( lhcpe, "scale", 0.2, 5.0, 0.05).onChange( function(value) { lhcpe.cvfUniforms.scale.value = value; } );
 				folder5.addColor( lhcpe, "color").onChange( function(value) { lhcpe.setColor(value); } );
 
@@ -275,7 +275,7 @@
                 //folder6.add( lhcpm, "animate" ).onChange( function(value) { lhcpm.setAnimate(value); } );
 				//folder6.add( lhcpm, "swapAnimDir" ).onChange( function(value) { lhcpm.swapAnimationDirection(value); } );
 				folder6.add( lhcpm, "theta", 60, 180, 30).onChange( function(value) { lhcpm.loadNewGeometry(12, 102.0, value, lhcpm.phi); } );
-				folder6.add( lhcpm, "phi", 30, 60, 30).onChange( function(value) { lhcpm.loadNewGeometry(12, 102.0, lhcpm.theta, value); } );
+				folder6.add( lhcpm, "phi", 30, 90, 30).onChange( function(value) { lhcpm.loadNewGeometry(12, 102.0, lhcpm.theta, value); } );
 				//folder6.add( lhcpm, "scale", 0.2, 5.0, 0.05).onChange( function(value) { lhcpm.cvfUniforms.scale.value = value; } );
 				folder6.addColor( lhcpm, "color").onChange( function(value) { lhcpm.setColor(value); } );
 				
@@ -318,7 +318,7 @@
 				}
 				else if(effectController.position < 10.0) {
 					lhtse.setVisibility(true); 
-					lhtse.cvfLines.rotation.z = effectController.position * -0.1;
+					lhtse.cvfLines.rotation.z = effectController.position * -0.1 + 1.0;
 					lhcpe.setVisibility(false); 
 					lhcpm.setVisibility(false); 
 					//y103.setVisibility(true); 
