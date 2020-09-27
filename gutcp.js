@@ -86,7 +86,7 @@ var cvfVertexShader2 =
 	"	} 																									\n" + 
 	"	\n" 																									+	
 	"	vec4 mvPosition = modelViewMatrix * vec4( new_position.xyz*scale, 1.0 ); 							\n" + 
-	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_PointSize = 1.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
@@ -126,7 +126,7 @@ var electronExcitedVertexShader =
 	" 		}; \n" +
 	" 	} \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
-	"	gl_PointSize = 5.0; 																		\n" + 
+	"	gl_PointSize = 1.0; 																		\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 												\n" + 
 	"} \n";
 
@@ -184,7 +184,7 @@ var photonVertexShader =
 	"	newPosition *= scale; 		\n" + 
 	"	newPosition.z += zOffset; 	\n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
-	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_PointSize = 1.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
@@ -241,7 +241,7 @@ var neutrinoVertexShader =
 	"	newPosition *= scale; 		\n" + 
 	"	newPosition.z += zOffset; 	\n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
-	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_PointSize = 1.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
@@ -487,6 +487,8 @@ var movingGridVertexShader =
 // RHC2P H Neutrino (Eq 39.15) : mode == 15
 // LHC2P E Neutrino (Eq 39.16) : mode == 16
 // LHC2P H Neutrino (Eq 39.16) : mode == 17
+// LHTS-evf 
+
 class CVF {
 	// Return an individual CVF vertex:
 	// mode    = 1:BECVF, 2:OCVF
@@ -697,6 +699,36 @@ class CVF {
 		return vertex;
 	}
 
+	static getLhtsVertex(radius, i_theta, THETA, i_phi, PHI) {
+		var theta = 2.0 * Math.PI * i_theta / THETA;
+		var cvfRot = [];
+		
+		// Setup the 3x3 rotation matrix from GUTCP Eq(4.36) LHTS
+		cvfRot[0+0] = ( 0.5 + 0.5*Math.cos(theta));
+		cvfRot[0+1] = (-0.5 + 0.5*Math.cos(theta));
+		cvfRot[0+2] = (-0.70711*Math.sin(theta));
+		cvfRot[3+0] = (-0.5 + 0.5*Math.cos(theta));
+		cvfRot[3+1] = ( 0.5 + 0.5*Math.cos(theta)); 
+		cvfRot[3+2] = (-0.70711*Math.sin(theta));
+		cvfRot[6+0] = ( 0.70711*Math.sin(theta));
+		cvfRot[6+1] = ( 0.70711*Math.sin(theta));
+		cvfRot[6+2] = (Math.cos(theta));
+		
+		var phi;
+		var cvf = [];
+		
+		// Setup the BECVF basis current loop:
+		phi = 2.0 * Math.PI * i_phi / PHI;
+		cvf = [0.0, (radius * Math.cos(phi)), (radius * Math.sin(phi))];
+		
+		var vertex = [];
+		vertex[ 0 ] = cvf[0]*cvfRot[0+0] + cvf[1]*cvfRot[0+1] + cvf[2]*cvfRot[0+2];
+		vertex[ 1 ] = cvf[0]*cvfRot[3+0] + cvf[1]*cvfRot[3+1] + cvf[2]*cvfRot[3+2]; 
+		vertex[ 2 ] = cvf[0]*cvfRot[6+0] + cvf[1]*cvfRot[6+1] + cvf[2]*cvfRot[6+2];
+	
+		return vertex;
+	}
+
 	// Returns a two-element array containing geometry and uv for GUTCP Current-Vector Fields.
 	// mode 1 - returns a BECVF geometries and uvs
 	// mode 2 - returns a OCVF geometry and uvs 
@@ -731,41 +763,7 @@ class CVF {
 		return retval;
 	}
 
-	// Static function that returns a two-element array containing geometry and uv for GUTCP Current-Vector Fields.
-	// Y00 BECVF (Eq 1.103) : mode == 1
-	// Y00 OCVF  (Eq 1.109) : mode == 2
-	static createY00Geometry (mode, radius, N, M, PHI) {
-		// Storage for all the locations for the BECVF:
-		var positions;
-		var uvs;
-		
-		var retval = [];
-		retval[0] = [];
-		retval[1] = [];
-		var vtx = [];
-		for (var i_m = 1; i_m <= M; i_m++) {
-			for (var i_n = 1; i_n <= N; i_n++) {
-				var p = 0;
-				var q = 0;
-				positions = new Float32Array( PHI * 3 );
-				uvs = new Float32Array( PHI * 2 );
-				for (var i_phi = 0; i_phi < PHI; i_phi++) {
-					vtx = CVF.getY00Vertex(mode, radius, i_n, N, i_m, M, i_phi, PHI);
-					positions[p++] = vtx[0];
-					positions[p++] = vtx[1];
-					positions[p++] = vtx[2];
-					
-					uvs[ q++ ] = i_phi / ( PHI - 1 );
-					uvs[ q++ ] = i_phi / ( PHI - 1 );
-				}
-				retval[0].push(positions);
-				retval[1].push(uvs);
-			}
-		}
-		return retval;
-	}
-	
-	// Static function that returns a two-element array containing geometry and uv for GUTCP Current-Vector Fields.
+	// Static function that returns a two-element array containing geometry and uv for GUTCP Orbitsphere geometry.
 	// Y00 BECVF (Eq 1.103) : mode == 1
 	// Y00 OCVF  (Eq 1.109) : mode == 2
 	static createY00Geometry (mode, radius, N, M, PHI) {
@@ -819,6 +817,37 @@ class CVF {
 			uvs = new Float32Array( PHI * 2 );
 			for ( var j = 0; j < PHI; j++ ) {
 				vtx = CVF.getPhotonVertex(mode, field, radius, i, THETA, j, PHI);
+				positions[ p++ ] = vtx[0];
+				positions[ p++ ] = vtx[1];
+				positions[ p++ ] = vtx[2];
+				
+				// Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
+				uvs[ q++ ] = i / ( THETA - 1 );
+				uvs[ q++ ] = j / ( PHI - 1 );
+			}
+			retval[0].push(positions);
+			retval[1].push(uvs);
+		}
+		return retval;
+	}
+	
+	static createLhtsGeometry(radius, THETA, PHI) {
+		// Storage for all the locations for the geometry:
+		var positions;
+		var uvs;
+	
+		// Local loop variables:
+		var retval = [];
+		retval[0] = [];
+		retval[1] = [];
+		var vtx = [];
+		for ( var i = 0; i < THETA/2; i++ ) {
+			var p = 0;
+			var q = 0;
+			positions = new Float32Array( PHI * 3 );
+			uvs = new Float32Array( PHI * 2 );
+			for ( var j = 0; j < PHI; j++ ) {
+				vtx = CVF.getLhtsVertex(radius, i, THETA, j, PHI);
 				positions[ p++ ] = vtx[0];
 				positions[ p++ ] = vtx[1];
 				positions[ p++ ] = vtx[2];
@@ -985,6 +1014,11 @@ class CVF {
 			cvfGeo = CVF.createPhotonGeometry (2, 2, radius, THETA, PHI);
 			vertex_shader = neutrinoVertexShader;
 			this.cvfUniforms.rhcp.value = false;
+		} else 
+		if(mode == 18) {
+			cvfGeo = CVF.createLhtsGeometry (radius, THETA, PHI);
+			// vertex_shader = neutrinoVertexShader;
+			// this.cvfUniforms.rhcp.value = false;
 		} else { // ERROR condition!!!
 			cvfGeo = CVF.createCvfGeometry (1, radius, THETA, PHI);
 		} 
@@ -997,7 +1031,9 @@ class CVF {
 		this.material = new THREE.ShaderMaterial( {
 			uniforms:       this.cvfUniforms,
 			vertexShader:   vertex_shader,
-			fragmentShader: cvfFragmentShader
+			fragmentShader: cvfFragmentShader,
+			transparent:    true,
+			opacity: 0.5
 		} );
 		this.material.extensions.drawBuffers = true;
 
