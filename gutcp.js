@@ -123,7 +123,6 @@ var electronExcitedVertexShader =
 	" 		if(initial_angle < photon_angle) { \n" + 
 	" 			newPosition *= (excitedElectronRadius / normalElectronRadius); \n" + 
 	" 			vColor.w *= 0.3; \n" + 
-	" 			//vColor = vec4( color[0], color[1], color[2], 0.2*color[3] ); \n" + 
 	" 		}; \n" +
 	" 	} \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
