@@ -287,8 +287,9 @@
 					// Photon moving:
 					effectController.position = time * (200.0/3.0) - 200.0;
 					
+					y103.setColor([255, 0, 0, 1.0]);
 					y103.cvfUniforms.scale.value = 1.0;
-					y103.setOpacity(1.0);
+					y103.setOpacity(0.3);
 					y103.setZ(0); 
 					y103.setVisibility(true); 
 					
@@ -315,7 +316,7 @@
 					effectController.position = 0.0;
 					
 					y103.cvfUniforms.scale.value = 1.0;
-					y103.setOpacity(1.0);
+					y103.setOpacity(0.3);
 					y103.setZ(0); 
 					y103.setVisibility(true); 
 					
@@ -339,14 +340,14 @@
 					//y103.setVisibility(true); 
 				}
 				else if(time < 9.0) {
+					// Mag-field changes to elec-field:
 					var pc = ((time - 6.0) / 3.0);
 				
 					y103.cvfUniforms.scale.value = 1.0;
-					y103.setOpacity(1.0);
+					y103.setOpacity(0.3);
 					y103.setZ(0); 
 					y103.setVisibility(true); 
 					
-					// Mag-field changes to elec-field:
 					var pc = (time - 6.0) * (1.0/3.0);
 					lhcpe.setCutoff(pc * 0.25 + 0.25); 
 					//lhcpm.setColor([255 * pc, 0, 255*(1-pc)]);
@@ -354,10 +355,13 @@
 					//lhcpm.setOpacity((time - 6.0) * (-0.9/3.0) + 1.0);
 				}
 				else if(time < 12.0) {
+					// Electron shell grows:
 					var pc = ((time - 9.0) / 3.0);
 					
+					y103.setColor([255, 0, 0, 1.0]);
 					y103.cvfUniforms.scale.value = pc * 2.0 + 1.0;
-					y103.setOpacity(pc * -0.9 + 1.0);
+					//y103.setOpacity(pc * -0.9 + 1.0);
+					y103.setOpacity(0.3);
 					y103.setZ(0); 
 					y103.setVisibility(true); 
 					
@@ -371,9 +375,9 @@
 					lhcpm.setColor([255, 0, 0]);
 					lhcpm.setCutoff(0.0); 
 					lhcpm.setVisibility(true); 
-					
 				}
 				else {
+					// Transition from 
 				}
 			}
 
@@ -383,7 +387,7 @@
 				tick += delta;
 				if ( tick < 0 ) tick = 0;
 				
-				if(effectController.time > 12.0) {
+				if(effectController.time > 15.0) {
 					effectController.time = 0.0;
 				}
 				else {
