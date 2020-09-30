@@ -339,6 +339,7 @@
 					//y103.setVisibility(true); 
 				}
 				else if(time < 9.0) {
+					var pc = ((time - 6.0) / 3.0);
 				
 					y103.cvfUniforms.scale.value = 1.0;
 					y103.setOpacity(1.0);
@@ -353,11 +354,23 @@
 					//lhcpm.setOpacity((time - 6.0) * (-0.9/3.0) + 1.0);
 				}
 				else if(time < 12.0) {
+					var pc = ((time - 9.0) / 3.0);
 					
-					y103.cvfUniforms.scale.value = (time - 9.0) * (2.0/3.0) + 1.0;
-					y103.setOpacity((time - 9.0) * (-0.9/3.0) + 1.0);
+					y103.cvfUniforms.scale.value = pc * 2.0 + 1.0;
+					y103.setOpacity(pc * -0.9 + 1.0);
 					y103.setZ(0); 
 					y103.setVisibility(true); 
+					
+					lhcpe.setZ(effectController.position); 
+					lhcpe.cvfUniforms.scale.value = pc * 0.2 + 0.1;
+					lhcpe.setCutoff(0.50); 
+					lhcpe.setVisibility(true); 
+					
+					lhcpm.setZ(effectController.position); 
+					lhcpm.cvfUniforms.scale.value = pc * 0.2 + 0.1;
+					lhcpm.setColor([255, 0, 0]);
+					lhcpm.setCutoff(0.0); 
+					lhcpm.setVisibility(true); 
 					
 				}
 				else {
