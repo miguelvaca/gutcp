@@ -30,7 +30,7 @@ var cvfVertexShader =
 	"	vec3 newPosition = position.xyz*scale; 														\n" + 
 	"	newPosition.z += zOffset; 																	\n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
-	"	gl_PointSize = 5.0; 																		\n" + 
+	"	gl_PointSize = 2.0; 																		\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 												\n" + 
 	"} \n";
 
@@ -86,7 +86,7 @@ var cvfVertexShader2 =
 	"	} 																									\n" + 
 	"	\n" 																									+	
 	"	vec4 mvPosition = modelViewMatrix * vec4( new_position.xyz*scale, 1.0 ); 							\n" + 
-	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_PointSize = 2.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
@@ -126,7 +126,7 @@ var electronExcitedVertexShader =
 	" 		}; \n" +
 	" 	} \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
-	"	gl_PointSize = 5.0; 																		\n" + 
+	"	gl_PointSize = 2.0; 																		\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 												\n" + 
 	"} \n";
 
@@ -184,7 +184,7 @@ var photonVertexShader =
 	"	newPosition *= scale; 		\n" + 
 	"	newPosition.z += zOffset; 	\n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
-	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_PointSize = 1.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
@@ -241,7 +241,7 @@ var neutrinoVertexShader =
 	"	newPosition *= scale; 		\n" + 
 	"	newPosition.z += zOffset; 	\n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
-	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_PointSize = 2.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
@@ -253,7 +253,6 @@ var  photonAbsorptionEmissionVertexShader =
 	"uniform float radius; 			\n" + 
 	"uniform float scale; 			\n" + 
 	"uniform float cutoff; 			\n" + 
-	"uniform float electronRadius; 	\n" + 
 	"uniform float zOffset; 		\n" + 
 	"uniform float normalElectronRadius; \n" + 
 	"uniform float excitedElectronRadius; \n" + 
@@ -267,8 +266,101 @@ var  photonAbsorptionEmissionVertexShader =
 	"const float PI = 3.1415926535; \n" + 
 	"\n" 								+
 	"void main() { 					\n" + 
-	"   mat3  rotation_rhcp = mat3( 0.5, -0.5, 0.707, -0.5, 0.5, 0.707, -0.707, -0.707, 0.0); 				\n" + 
-	"   mat3  rotation_lhcp = mat3( 0.5, 0.5, -0.707, 0.5, 0.5, 0.707, 0.707, -0.707, 0.0); 				\n" + 
+	"   mat3  rotation_rhcp = mat3( 0.5, -0.5,  0.707, -0.5, 0.5, 0.707, -0.707, -0.707, 0.0); 				\n" + 
+	"   mat3  rotation_lhcp = mat3( 0.5,  0.5, -0.707,  0.5, 0.5, 0.707,  0.707, -0.707, 0.0); 				\n" + 
+	"	vec3 newPosition = position.xyz; \n" + 
+	"	if(rotate) { 				\n" + 
+	"		if(rhcp) { 				\n" + 
+	"			newPosition = rotation_rhcp * position.xyz; \n" + 
+	"		} else { 				\n" + 
+	"			newPosition = rotation_lhcp * position.xyz; \n" + 
+	"		} 						\n" + 
+	"	} else { 					\n" + 
+	"		newPosition = position.xyz; \n" + 
+	"	} \n" + 
+	"	float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0/wavesPerRing) * wavesPerRing; 			\n" + 
+	"	if(animate) { 				\n" + 
+	"		float shift = mod((uTime + uv.x), 1.0); 														\n" +
+	"		if(shift <= cutoff) { \n" + 
+	"			vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	\n" + 
+	"		} else { \n" + 
+	"			vColor = vec4( 0.2*color[0]+0.8*background[0], 0.2*color[1]+0.8*background[1], 0.2*color[2]+0.8*background[2], color[3] );	\n" + 
+	"		}  \n" + 
+	"		newPosition.z = newPosition.z - shift * 2.0 * radius;											\n" + 
+	"	} else { 																							\n" + 
+	"		float shift = mod((uTime + uv.x), 1.0); 														\n" +
+	"		if(shift <= cutoff) { \n" + 
+	"			vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	\n" + 
+	"		} else { \n" + 
+	"			vColor = vec4( 0.0, 0.0, 0.0, 0.0 );	\n" + 
+	"			newPosition = vec3( 0.0, 0.0, 0.0 );	\n" + 
+	"		} 																								\n" + 
+	"	} 																									\n" + 
+	"	\n" 																									+	
+	"	newPosition *= radius * 0.01; 																		\n" + 
+	"	if(abs(zOffset) <= (excitedElectronRadius + radius)) { 												\n" + 
+	"		vec3 direction_vect = vec3(0.0, 0.0, (zOffset > 0.0) ? -radius : radius);							\n" + 
+	"   	float initial_angle = acos( dot(newPosition, direction_vect) / (length(newPosition) * length(direction_vect)) ); \n" + 
+	"		float photon_angle = PI * (1.0 - (abs(zOffset)/(excitedElectronRadius + radius)));				\n" + 
+	"		float electron_angle = photon_angle; 										\n" + 
+	"		float delta_angle = photon_angle > initial_angle ? photon_angle - initial_angle : 0.0 ; 		\n" + 
+	"		photon_angle = photon_angle > initial_angle ? initial_angle : photon_angle;	\n" + 
+	"   	vec3 rotation_axis = normalize( cross(newPosition, direction_vect) ); 		\n" + 
+	"   	float cos_new_angle = cos(photon_angle); 									\n" + 
+	"   	float sin_new_angle = sin(photon_angle); 									\n" + 
+	"   	mat3  rotation_m = mat3( cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.x,2.0), 						\n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.y+sin_new_angle*rotation_axis.z, \n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.z-sin_new_angle*rotation_axis.y, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.y-sin_new_angle*rotation_axis.z, \n" +
+	"   	                         cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.y,2.0), 						\n" + 
+	"   	                         (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z+sin_new_angle*rotation_axis.x, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.z+sin_new_angle*rotation_axis.y, \n" +
+	"   	                         (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z-sin_new_angle*rotation_axis.x, \n" +
+	"   	                         cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.z,2.0) );  					\n" + 
+	"   	newPosition = rotation_m * newPosition; \n" + 
+	" 		newPosition.z += (zOffset > 0.0) ? (excitedElectronRadius + radius) : -(excitedElectronRadius + radius); 	\n" + 
+	"   	cos_new_angle = cos(delta_angle > 0.0 ? delta_angle : electron_angle); 										\n" + 
+	"   	sin_new_angle = sin(delta_angle > 0.0 ? delta_angle : electron_angle); 										\n" + 
+	"   	rotation_m = mat3( cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.x,2.0), 								\n" + 
+	"   	                   (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.y+sin_new_angle*rotation_axis.z, \n" + 
+	"   	                   (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.z-sin_new_angle*rotation_axis.y, \n" +
+	"   	                   (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.y-sin_new_angle*rotation_axis.z, \n" +
+	"   	                   cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.y,2.0), 						  \n" + 
+	"   	                   (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z+sin_new_angle*rotation_axis.x, \n" +
+	"   	                   (1.0-cos_new_angle)*rotation_axis.x*rotation_axis.z+sin_new_angle*rotation_axis.y, \n" +
+	"   	                   (1.0-cos_new_angle)*rotation_axis.y*rotation_axis.z-sin_new_angle*rotation_axis.x, \n" +
+	"   	                   cos_new_angle+(1.0-cos_new_angle)*pow(rotation_axis.z,2.0) );  					  \n" + 
+	"   	newPosition = rotation_m * newPosition; \n" + 
+	"	} else {						\n" + 
+	"		newPosition.z += zOffset; 	\n" + 
+	"	} 								\n" + 
+	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
+	"	gl_PointSize = 2.0; 																				\n" + 
+	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
+	"} \n";
+
+var  photonAbsorptionEmissionVertexShaderOld = 
+	"uniform float wavesPerRing; 	\n" + 
+	"uniform float waveSpeed; 		\n" + 
+	"uniform float uTime; 			\n" + 
+	"uniform float radius; 			\n" + 
+	"uniform float scale; 			\n" + 
+	"uniform float cutoff; 			\n" + 
+	"uniform float zOffset; 		\n" + 
+	"uniform float normalElectronRadius; \n" + 
+	"uniform float excitedElectronRadius; \n" + 
+	"uniform bool  animate; 		\n" + 
+	"uniform bool  swapAnimDir; 	\n" + 
+	"uniform bool  rotate; 			\n" + 
+	"uniform bool  rhcp; 			\n" + 
+	"uniform vec4  color; 			\n" + 
+	"uniform vec4  background; 		\n" + 
+	"varying vec4  vColor; 			\n" + 
+	"const float PI = 3.1415926535; \n" + 
+	"\n" 								+
+	"void main() { 					\n" + 
+	"   mat3  rotation_rhcp = mat3( 0.5, -0.5,  0.707, -0.5, 0.5, 0.707, -0.707, -0.707, 0.0); 				\n" + 
+	"   mat3  rotation_lhcp = mat3( 0.5,  0.5, -0.707,  0.5, 0.5, 0.707,  0.707, -0.707, 0.0); 				\n" + 
 	"	vec3 newPosition = position.xyz; \n" + 
 	"	if(rotate) { 				\n" + 
 	"		if(rhcp) { 				\n" + 
@@ -337,7 +429,7 @@ var  photonAbsorptionEmissionVertexShader =
 	"		newPosition.z += zOffset; 	\n" + 
 	"	} 								\n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 									\n" + 
-	"	gl_PointSize = 5.0; 																				\n" + 
+	"	gl_PointSize = 2.0; 																				\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 														\n" + 
 	"} \n";
 
@@ -362,7 +454,7 @@ var densitymapVertexShader =
 	"		mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 	\n" + 
 	"	}										\n" + 
 	"											\n" + 
-	"	gl_PointSize = 5.0;						\n" + 
+	"	gl_PointSize = 2.0;						\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; \n" + 
 	"}	\n";
 
@@ -391,7 +483,7 @@ var nucleonVertexShader =
 	"		mvPosition = modelViewMatrix * vec4( position.xyz*pow(( (uv.y-minChargeValue) / (maxChargeValue-minChargeValue)),shape), 1.0 );	\n" + 
 	"	}  										\n" + 
 	"											\n" + 
-	"	gl_PointSize = 5.0;						\n" + 
+	"	gl_PointSize = 2.0;						\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; \n" + 
 	"}	\n";
 
@@ -412,7 +504,7 @@ var sphereVertexShader =
 	"	vColor = cos(uv.y*phiFreq)*cos(uv.x*thetaFreq)*(hiColor-loColor) + loColor;	\n" + 
 	"	mvPosition = modelViewMatrix * vec4( position.xyz*pow(cos(uv.y*phiFreq)*cos(uv.x*thetaFreq), shape), 1.0);	\n" + 
 	"											\n" + 
-	"	gl_PointSize = 5.0;						\n" + 
+	"	gl_PointSize = 2.0;						\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; \n" + 
 	"}	\n";
 
@@ -435,7 +527,7 @@ var gridVertexShader =
 	" 			(background[1]<0.5) ? gridContrast*(1.0-background[1])+background[1] : background[1] - gridContrast*background[1], " + 
 	" 			(background[2]<0.5) ? gridContrast*(1.0-background[2])+background[2] : background[2] - gridContrast*background[2], 1.0 ); \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 				\n" + 
-	"	gl_PointSize = 5.0; 														\n" + 
+	"	gl_PointSize = 2.0; 														\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 								\n" + 
 	"}";
 
@@ -469,7 +561,7 @@ var movingGridVertexShader =
 	"	} 																			\n" + 
 	"	newPosition.z += gridSize; \n" +
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 			\n" + 
-	"	gl_PointSize = 5.0; 														\n" + 
+	"	gl_PointSize = 2.0; 														\n" + 
 	"	gl_Position = projectionMatrix * mvPosition; 								\n" + 
 	"}";
 
@@ -867,6 +959,7 @@ class CVF {
 	constructor(mode, radius, THETA, PHI) {
 		this.scene = 0;
 		// Variable handles for dat.gui to manipulate:
+		this.opacity = 1.0;
 		this.color = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
 		this.animate = false;
 		this.swapAnimDir = false;
@@ -1033,7 +1126,7 @@ class CVF {
 			vertexShader:   vertex_shader,
 			fragmentShader: cvfFragmentShader,
 			transparent:    true,
-			opacity: 0.5
+			opacity: 1.0
 		} );
 		this.material.extensions.drawBuffers = true;
 
@@ -1082,7 +1175,12 @@ class CVF {
 	// Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
 	setColor(value) {
 		this.color = value;
-		this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, 1.0];
+		this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+	}
+	
+	setOpacity(value) {
+		this.opacity = value;
+		this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
 	}
 	
 	// Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
@@ -1305,11 +1403,11 @@ class DensityMap {
 // Proton normalised mass and charge density functions:
 class Proton {
 
-	constructor( p_mass_not_charge ) {
+	constructor( p_mass_not_charge, radius=98 ) {
 		// Create the sphere, and obtain handles to vertices. Also a handle to the UV map, which will be used to
 		// contain either the mass-density (U) or charge-density (V) data:
 		//this.nucleonGeometry  = new THREE.SphereBufferGeometry( 98, 40, 20 );
-		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( 98, 4 );
+		this.nucleonGeometry  = new THREE.IcosahedronBufferGeometry( radius, 4 );
 		this.nucleonVertices  = this.nucleonGeometry.getAttribute('position');
 		this.nucleonHistogram = this.nucleonGeometry.getAttribute('uv');
 		

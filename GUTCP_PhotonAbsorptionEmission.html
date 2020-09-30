@@ -48,6 +48,7 @@
 				// A global structure used to store a couple of the adjustable parameters that don't easily
 				// belong somewhere else. Not pretty, but does the trick.
 				effectController = {
+					time: 				0.0,
 					position: 			-200.0,
                     waveSpeed: 			0.50,
 					wavesPerRing: 		1.0,
@@ -90,12 +91,17 @@
 				grid.setBackground(effectController.background);
 				
 				// Create the Y00 visualisation geometry and insert it into the scene:
-				y103 = new CVF(13, 10.0, 12, 30);
+				y103 = new CVF(3, 10.0, 12, 30);
 				y103.setColor([0, 255, 0, 1.0]);
 				y103.setBackground(effectController.background);
 				y103.setAnimate(false);
 				y103.setVisibility(true);
 				y103.insertScene(scene);
+				
+				// Create a proton 
+				proton = new Proton(1, 1.0);
+				proton.insertScene(scene);
+				proton.setVisibility(true);
 				
 				// Create the lhtse visualisation and insert it into the scene:
 				lhtse = new CVF(18, 20.0, 60, 60);
@@ -106,17 +112,8 @@
 				lhtse.setVisibility(true);
 				lhtse.insertScene(scene);
 				
-				// Create the rhcpm visualisation and insert it into the scene:
-				//rhcpm = new CVF(18, 101.0, 60, 30);
-				//rhcpm.setColor([0, 0, 255]);
-				//rhcpm.setBackground(effectController.background);
-				//rhcpm.setSpeed(effectController.waveSpeed); 
-				//rhcpm.setAnimate(false);
-				//rhcpm.setVisibility(true);
-				//rhcpm.insertScene(scene);
-				
 				// Create the lhcpe visualisation geometry and insert it into the scene:
-				lhcpe = new CVF(11, 100.0, 60, 60);
+				lhcpe = new CVF(7, 100.0, 60, 60);
 				lhcpe.setColor([255, 0, 0]);
 				lhcpe.setBackground(effectController.background);
 				lhcpe.setSpeed(effectController.waveSpeed); 
@@ -125,7 +122,7 @@
 				lhcpe.insertScene(scene);
 				
 				// Create the lhcpm visualisation geometry and insert it into the scene:
-				lhcpm = new CVF(12, 101.0, 60, 60);
+				lhcpm = new CVF(8, 101.0, 60, 60);
 				lhcpm.setColor([0, 0, 255]);
 				lhcpm.setBackground(effectController.background);
 				lhcpm.setSpeed(effectController.waveSpeed); 
@@ -156,13 +153,14 @@
 			function getCameraConstant( camera ) {
 				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
 			}
-
+			
 			function initGUI() {
 				// Create the parameter control panel (on the right)
 				var gui = new dat.GUI();
 
 				// Add a folder to hold all the common parameters:
 				var folder1 = gui.addFolder( 'Common parameters' );
+				/*
                 folder1.add( effectController, "position", -200.0, 200.0, 1.00 ).onChange( function(value) { 
                 	lhtse.setZ(value); 
                 	//rhcpm.setZ(value); 
@@ -170,6 +168,7 @@
 					lhcpm.setZ(value); 
 					y103.setZ(value); 
                 } );
+                */
                 folder1.add( effectController, "waveSpeed", 0.0, 3.0, 0.01 ).onChange( function(value) { 
                 	lhtse.setSpeed(value); 
                 	//rhcpm.setSpeed(value); 
@@ -192,14 +191,14 @@
 					y103.cvfUniforms.cutoff.value = value;
                 } );
 				folder1.add( effectController, "electronStableRadius", 1.0, 20.0, 1.0 ).onChange( function(value) { 
-                	lhtse.cvfUniforms.normalElectronRadius.value = value; 
+                	//lhtse.cvfUniforms.normalElectronRadius.value = value; 
                 	//rhcpm.cvfUniforms.normalElectronRadius.value = value;
 					lhcpe.cvfUniforms.normalElectronRadius.value = value;
 					lhcpm.cvfUniforms.normalElectronRadius.value = value;
 					y103.cvfUniforms.normalElectronRadius.value = value;
                 } );
 				folder1.add( effectController, "electronExcitedRadius", 2.0, 100.0, 1.0 ).onChange( function(value) { 
-                	lhtse.cvfUniforms.excitedElectronRadius.value = value; 
+                	//lhtse.cvfUniforms.excitedElectronRadius.value = value; 
                 	//rhcpm.cvfUniforms.excitedElectronRadius.value = value;
 					lhcpe.cvfUniforms.excitedElectronRadius.value = value;
 					lhcpm.cvfUniforms.excitedElectronRadius.value = value;
@@ -281,6 +280,89 @@
 				
 				folder1.open();
 			}
+			
+			function setTime( time ) {
+				// State machine based on time:
+				if (time < 3.0) {
+					// Photon moving:
+					effectController.position = time * (200.0/3.0) - 200.0;
+					
+					y103.cvfUniforms.scale.value = 1.0;
+					y103.setOpacity(1.0);
+					y103.setZ(0); 
+					y103.setVisibility(true); 
+					
+					// Set position:
+					// LHCP Electric Field:
+					lhcpe.setZ(effectController.position); 
+					lhcpe.cvfUniforms.scale.value = 1.0;
+					lhcpe.setCutoff(0.25); 
+					lhcpe.setVisibility(true); 
+					
+					// LHCP Magnetic Field:
+					lhcpm.setZ(effectController.position); 
+					lhcpm.cvfUniforms.scale.value = 1.0;
+					lhcpm.setColor([0, 0, 255]);
+					lhcpm.setOpacity(1.0);
+					lhcpm.setCutoff(0.25); 
+					lhcpm.setVisibility(true); 
+					
+					// Set visibility:
+					lhtse.setVisibility(false); 
+				}
+				else if(time < 6.0) {
+					// Photon shrinking:
+					effectController.position = 0.0;
+					
+					y103.cvfUniforms.scale.value = 1.0;
+					y103.setOpacity(1.0);
+					y103.setZ(0); 
+					y103.setVisibility(true); 
+					
+					lhcpe.setZ(effectController.position); 
+					lhcpe.cvfUniforms.scale.value = (time - 3.0) * (-0.9/3.0) + 1.0;
+					lhcpe.setCutoff(0.25); 
+					lhcpe.setVisibility(true); 
+					
+					lhcpm.setZ(effectController.position); 
+					lhcpm.cvfUniforms.scale.value = (time - 3.0) * (-0.9/3.0) + 1.0;
+					lhcpm.setColor([0, 0, 255]);
+					//lhcpm.setOpacity(1.0);
+					lhcpm.setCutoff(0.25); 
+					lhcpm.setVisibility(true); 
+					
+					// Set position:
+					//lhcpe.setZ(effectController.position); 
+					//lhcpm.setZ(effectController.position); 
+					
+					//lhtse.setVisibility(false); 
+					//y103.setVisibility(true); 
+				}
+				else if(time < 9.0) {
+				
+					y103.cvfUniforms.scale.value = 1.0;
+					y103.setOpacity(1.0);
+					y103.setZ(0); 
+					y103.setVisibility(true); 
+					
+					// Mag-field changes to elec-field:
+					var pc = (time - 6.0) * (1.0/3.0);
+					lhcpe.setCutoff(pc * 0.25 + 0.25); 
+					//lhcpm.setColor([255 * pc, 0, 255*(1-pc)]);
+					lhcpm.setCutoff((1.0 - pc) * 0.25); 
+					//lhcpm.setOpacity((time - 6.0) * (-0.9/3.0) + 1.0);
+				}
+				else if(time < 12.0) {
+					
+					y103.cvfUniforms.scale.value = (time - 9.0) * (2.0/3.0) + 1.0;
+					y103.setOpacity((time - 9.0) * (-0.9/3.0) + 1.0);
+					y103.setZ(0); 
+					y103.setVisibility(true); 
+					
+				}
+				else {
+				}
+			}
 
 			function animate() {
 				// Update the elapsed time to later provide to the shaders:
@@ -288,45 +370,46 @@
 				tick += delta;
 				if ( tick < 0 ) tick = 0;
 				
-				if(effectController.position > 200) {
-					effectController.position = -200;
+				if(effectController.time > 12.0) {
+					effectController.time = 0.0;
 				}
 				else {
-					effectController.position += 0.3;
+					effectController.time += delta;
 				}
-
+				
+				setTime(effectController.time);
+				
+				/*
 				lhtse.setZ(0.0); 
 				//rhcpm.setZ(effectController.position); 
 				lhcpe.setZ(effectController.position); 
 				lhcpm.setZ(effectController.position); 
 				y103.setZ(effectController.position); 
 				
-				//lhcpe.cvfLines.rotation.z = effectController.position * -0.02;
-				//lhcpm.cvfLines.rotation.z = effectController.position * -0.02;
-				
 				if (effectController.position < -20.0) {
+				// 
 					lhtse.setVisibility(false); 
 					lhcpe.setVisibility(true); 
 					lhcpm.setVisibility(true); 
 					//y103.setVisibility(true); 
 				}
 				else if(effectController.position < -10.0) {
-					lhtse.setVisibility(false); 
+					//lhtse.setVisibility(false); 
 					lhcpe.setVisibility(true); 
-					lhcpm.setVisibility(false); 
+					//lhcpm.setVisibility(false); 
 					//y103.setVisibility(true); 
 				}
 				else if(effectController.position < 10.0) {
-					lhtse.setVisibility(true); 
-					lhtse.cvfLines.rotation.z = effectController.position * -0.1 + 1.0;
-					lhcpe.setVisibility(false); 
-					lhcpm.setVisibility(false); 
+					//lhtse.setVisibility(true); 
+					//lhtse.cvfLines.rotation.z = effectController.position * -0.1 + 1.0;
+					//lhcpe.setVisibility(false); 
+					//lhcpm.setVisibility(false); 
 					//y103.setVisibility(true); 
 				}
 				else if(effectController.position < 20.0) {
-					lhtse.setVisibility(false); 
+					//lhtse.setVisibility(false); 
 					lhcpe.setVisibility(true); 
-					lhcpm.setVisibility(false); 
+					//lhcpm.setVisibility(false); 
 					//y103.setVisibility(true); 
 				}
 				else {
@@ -342,6 +425,8 @@
 				//lhcpe.addTime(delta);
 				//lhcpm.addTime(delta);
 				y103.addTime(delta);
+				
+				*/
 				
 				// Tell WebGL to call the 'animate()' function for the next screen refresh:
 				requestAnimationFrame( animate );
