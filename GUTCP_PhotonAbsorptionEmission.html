@@ -33,13 +33,55 @@
 
 			var lhcpe;
 			var lhcpm;
+			
+			var solidElectron;
 
 			var densitymap;
 			//var blackSphere;
 
 			var grid;
 			var effectController;
-		
+			
+			class ElectronShell extends THREE.Mesh {
+				constructor(name, radius, color) {
+					//THREE.Mesh.call();
+					super();
+					this.name = name;
+					this.radius = radius;
+					this.color = color;
+					this.opacity = 1.0;
+					this.wireframe = false;
+					this.geometry = new THREE.IcosahedronGeometry( this.radius, 10 );
+					for(var i=0; i<this.geometry.faces.length; i++) {
+						var x =  (this.geometry.vertices[this.geometry.faces[i].a].x 
+								+ this.geometry.vertices[this.geometry.faces[i].b].x 
+								+ this.geometry.vertices[this.geometry.faces[i].c].x) * 0.33333;
+						var hue = 0.5 * (x/this.radius)  + 0.5;
+						this.geometry.faces[i].color.setHSL(hue, 1.0, 0.5);
+					}
+					this.material = new THREE.MeshBasicMaterial( {
+						color: 			this.color, 
+						opacity: 		this.opacity, 
+						transparent: 	true, 
+						wireframe: 		this.wireframe, 
+						vertexColors: 	true 
+					} );
+				}
+				setOpacity(value) {
+					this.material.opacity = value;
+				}
+				setColor(value) {
+					this.material.color.set(this.color);
+					this.material.vertexColors = true;
+				}
+				setVisibility(value) {
+					this.visible = value;
+				}
+				setWireframe(value) {
+					this.material.wireframe = value;
+				}
+			}
+
 			init();
 			animate();
 
@@ -129,6 +171,10 @@
 				lhcpm.setAnimate(false);
 				lhcpm.setVisibility(true);
 				lhcpm.insertScene(scene);
+				
+				// 
+				solidElectron = new ElectronShell("Excited",  32.0, 0xffffff);
+				scene.add(solidElectron);
 				
 				lhtse.setZ(effectController.position); 
 				//rhcpm.setZ(effectController.position); 
@@ -278,7 +324,7 @@
 				//folder6.add( lhcpm, "scale", 0.2, 5.0, 0.05).onChange( function(value) { lhcpm.cvfUniforms.scale.value = value; } );
 				folder6.addColor( lhcpm, "color").onChange( function(value) { lhcpm.setColor(value); } );
 				
-				folder1.open();
+				folder1.close();
 			}
 			
 			function setTime( time ) {
@@ -310,6 +356,8 @@
 					
 					// Set visibility:
 					lhtse.setVisibility(false); 
+					
+					solidElectron.setVisibility(false);
 				}
 				else if(time < 6.0) {
 					// Photon shrinking:
@@ -338,6 +386,7 @@
 					
 					//lhtse.setVisibility(false); 
 					//y103.setVisibility(true); 
+					solidElectron.setVisibility(false);
 				}
 				else if(time < 9.0) {
 					// Mag-field changes to elec-field:
@@ -353,6 +402,7 @@
 					//lhcpm.setColor([255 * pc, 0, 255*(1-pc)]);
 					lhcpm.setCutoff((1.0 - pc) * 0.25); 
 					//lhcpm.setOpacity((time - 6.0) * (-0.9/3.0) + 1.0);
+					solidElectron.setVisibility(false);
 				}
 				else if(time < 12.0) {
 					// Electron shell grows:
@@ -375,9 +425,12 @@
 					lhcpm.setColor([255, 0, 0]);
 					lhcpm.setCutoff(0.0); 
 					lhcpm.setVisibility(true); 
+					solidElectron.setVisibility(false);
 				}
 				else {
 					// Transition from 
+					solidElectron.setVisibility(true);
+					solidElectron.rotation.z = time * -1.0; // + 1.0;
 				}
 			}
 
