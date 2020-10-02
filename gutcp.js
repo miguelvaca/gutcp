@@ -1015,6 +1015,12 @@ class CVF {
 		// Remove the geometries from the scene:
 		if(this.scene) {
 			this.scene.remove(this.cvfLines);
+			// Delete all the geometries:
+			for(var i=0; i < this.cvfLines.children.length; i++) {
+				this.cvfLines.children[i].geometry.dispose();
+			}
+			// Delete the materials:
+			this.material.dispose();
 		}
 		
 		var vertex_shader = cvfVertexShader;
@@ -1134,8 +1140,8 @@ class CVF {
 		for(var p=0, pl=this.positions.length; p<pl; ++p) {
 			this.geometry = new THREE.BufferGeometry();
 			// Add the vertices and uv arrays as attributes into the geometry:
-			this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.positions[p], 3 ) );
-			this.geometry.addAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
+			this.geometry.setAttribute( 'position', new THREE.BufferAttribute( this.positions[p], 3 ) );
+			this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
 			
 			// Create the Lines geometry and load the into the scene:
 			var lines = new THREE.LineLoop( this.geometry, this.material );
@@ -1777,7 +1783,7 @@ class Grid {
 			}
 		}
 
-		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+		this.geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 		
 		this.gridContrast = 0.9;
 		this.background = [0, 0, 0];
@@ -1854,7 +1860,7 @@ class Grid {
 		}
 		
 		this.geometry = new THREE.BufferGeometry();
-		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+		this.geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 		this.gridContrast = 0.9;
 		this.background = [0, 0, 0];
 		
@@ -1965,7 +1971,7 @@ class SpacetimeGrid {
 			}
 		}
 
-		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+		this.geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 		
 		this.gridContrast = 0.9;
 		this.background = [0, 0, 0];
@@ -2042,7 +2048,7 @@ class SpacetimeGrid {
 		}
 		
 		this.geometry = new THREE.BufferGeometry();
-		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+		this.geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 		this.gridContrast = 0.9;
 		this.background = [0, 0, 0];
 		
@@ -2130,7 +2136,7 @@ class MovingGrid {
 				}
 			}
 		}
-		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+		this.geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 		
 		this.gridContrast = 0.5;
 		this.background = [0, 0, 0];
