@@ -425,12 +425,13 @@
 					lhcpm.setColor([255, 0, 0]);
 					lhcpm.setCutoff(0.0); 
 					lhcpm.setVisibility(true); 
+					
 					solidElectron.setVisibility(false);
 				}
 				else {
 					// Transition from 
 					solidElectron.setVisibility(true);
-					solidElectron.rotation.z = time * -1.0; // + 1.0;
+					solidElectron.rotation.y = time * 1.0; // + 1.0;
 				}
 			}
 
