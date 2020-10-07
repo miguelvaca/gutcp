@@ -94,8 +94,8 @@
 					position: 			-200.0,
                     waveSpeed: 			0.50,
 					wavesPerRing: 		1.0,
-					electronStableRadius: 	10.0,
-					electronExcitedRadius: 	20.0,
+					electronStableRadius: 	20.0,
+					electronExcitedRadius: 	30.0,
 					photonRadius: 		100.0,
 					cutoff: 			0.25,
                     rotate: 			false,
@@ -133,7 +133,7 @@
 				grid.setBackground(effectController.background);
 				
 				// Create the Y00 visualisation geometry and insert it into the scene:
-				y103 = new CVF(3, 10.0, 12, 30);
+				y103 = new CVF(13, 10.0, 12, 30);
 				y103.setColor([0, 255, 0, 1.0]);
 				y103.setBackground(effectController.background);
 				y103.setAnimate(false);
@@ -155,7 +155,8 @@
 				lhtse.insertScene(scene);
 				
 				// Create the lhcpe visualisation geometry and insert it into the scene:
-				lhcpe = new CVF(7, 100.0, 60, 60);
+				//lhcpe = new CVF(7, 100.0, 60, 60);
+				lhcpe = new CVF(11, 100.0, 60, 60);
 				lhcpe.setColor([255, 0, 0]);
 				lhcpe.setBackground(effectController.background);
 				lhcpe.setSpeed(effectController.waveSpeed); 
@@ -164,7 +165,8 @@
 				lhcpe.insertScene(scene);
 				
 				// Create the lhcpm visualisation geometry and insert it into the scene:
-				lhcpm = new CVF(8, 101.0, 60, 60);
+				//lhcpm = new CVF(8, 101.0, 60, 60);
+				lhcpm = new CVF(12, 101.0, 60, 60);
 				lhcpm.setColor([0, 0, 255]);
 				lhcpm.setBackground(effectController.background);
 				lhcpm.setSpeed(effectController.waveSpeed); 
@@ -173,7 +175,7 @@
 				lhcpm.insertScene(scene);
 				
 				// 
-				solidElectron = new ElectronShell("Excited",  32.0, 0xffffff);
+				solidElectron = new ElectronShell("Excited",  15.0, 0xffffff);
 				scene.add(solidElectron);
 				
 				lhtse.setZ(effectController.position); 
@@ -236,7 +238,7 @@
 					lhcpm.cvfUniforms.cutoff.value = value;
 					y103.cvfUniforms.cutoff.value = value;
                 } );
-				folder1.add( effectController, "electronStableRadius", 1.0, 20.0, 1.0 ).onChange( function(value) { 
+				folder1.add( effectController, "electronStableRadius", 1.0, 30.0, 1.0 ).onChange( function(value) { 
                 	//lhtse.cvfUniforms.normalElectronRadius.value = value; 
                 	//rhcpm.cvfUniforms.normalElectronRadius.value = value;
 					lhcpe.cvfUniforms.normalElectronRadius.value = value;
@@ -333,10 +335,10 @@
 					// Photon moving:
 					effectController.position = time * (200.0/3.0) - 200.0;
 					
-					y103.setColor([255, 0, 0, 1.0]);
+					y103.setColor([0, 255, 0, 1.0]);
 					y103.cvfUniforms.scale.value = 1.0;
 					y103.setOpacity(0.3);
-					y103.setZ(0); 
+					y103.setZ(effectController.position); 
 					y103.setVisibility(true); 
 					
 					// Set position:
@@ -365,20 +367,20 @@
 					
 					y103.cvfUniforms.scale.value = 1.0;
 					y103.setOpacity(0.3);
-					y103.setZ(0); 
+					y103.setZ(effectController.position); 
 					y103.setVisibility(true); 
 					
 					lhcpe.setZ(effectController.position); 
 					lhcpe.cvfUniforms.scale.value = (time - 3.0) * (-0.9/3.0) + 1.0;
 					lhcpe.setCutoff(0.25); 
-					lhcpe.setVisibility(true); 
+					lhcpe.setVisibility(false); 
 					
 					lhcpm.setZ(effectController.position); 
 					lhcpm.cvfUniforms.scale.value = (time - 3.0) * (-0.9/3.0) + 1.0;
 					lhcpm.setColor([0, 0, 255]);
 					//lhcpm.setOpacity(1.0);
 					lhcpm.setCutoff(0.25); 
-					lhcpm.setVisibility(true); 
+					lhcpm.setVisibility(false); 
 					
 					// Set position:
 					//lhcpe.setZ(effectController.position); 
@@ -394,14 +396,17 @@
 				
 					y103.cvfUniforms.scale.value = 1.0;
 					y103.setOpacity(0.3);
-					y103.setZ(0); 
+					y103.setZ(effectController.position); 
 					y103.setVisibility(true); 
 					
 					var pc = (time - 6.0) * (1.0/3.0);
 					lhcpe.setCutoff(pc * 0.25 + 0.25); 
 					//lhcpm.setColor([255 * pc, 0, 255*(1-pc)]);
+					//lhcpe.setVisibility(false); 
 					lhcpm.setCutoff((1.0 - pc) * 0.25); 
 					//lhcpm.setOpacity((time - 6.0) * (-0.9/3.0) + 1.0);
+					//lhcpm.setVisibility(false); 
+					
 					solidElectron.setVisibility(false);
 				}
 				else if(time < 12.0) {
@@ -412,26 +417,28 @@
 					y103.cvfUniforms.scale.value = pc * 2.0 + 1.0;
 					//y103.setOpacity(pc * -0.9 + 1.0);
 					y103.setOpacity(0.3);
-					y103.setZ(0); 
+					y103.setZ(effectController.position); 
 					y103.setVisibility(true); 
 					
 					lhcpe.setZ(effectController.position); 
 					lhcpe.cvfUniforms.scale.value = pc * 0.2 + 0.1;
 					lhcpe.setCutoff(0.50); 
-					lhcpe.setVisibility(true); 
+					lhcpe.setVisibility(false); 
 					
 					lhcpm.setZ(effectController.position); 
 					lhcpm.cvfUniforms.scale.value = pc * 0.2 + 0.1;
 					lhcpm.setColor([255, 0, 0]);
 					lhcpm.setCutoff(0.0); 
-					lhcpm.setVisibility(true); 
+					lhcpm.setVisibility(false); 
 					
 					solidElectron.setVisibility(false);
 				}
 				else {
 					// Transition from 
-					solidElectron.setVisibility(true);
-					solidElectron.rotation.y = time * 1.0; // + 1.0;
+					y103.setVisibility(true);
+					y103.rotateY(time * 0.003); // + 1.0;
+					//solidElectron.setVisibility(true);
+					//solidElectron.rotation.y = time * 1.0; // + 1.0;
 				}
 			}
 
@@ -441,7 +448,7 @@
 				tick += delta;
 				if ( tick < 0 ) tick = 0;
 				
-				if(effectController.time > 15.0) {
+				if(effectController.time > 12.0) {
 					effectController.time = 0.0;
 				}
 				else {
