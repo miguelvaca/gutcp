@@ -284,7 +284,21 @@ var electronExcitedVertexShader =
 	" 		float cosx = cos(10.0 * uTime); \n" + 
 	"   	mat3  rotation = mat3( cosx, 0.0,  sinx, 0.0, 1.0, 0.0, -sinx, 0.0, cosx); 				\n" + 
 	" 		vec3 col = rotation * normalize(newPosition); \n" + 
-	" 		vColor = vec4( 0.3, col[0], 0.3, 0.8); \n" + 
+	"       if(col[0] > 0.8) { \n" + 
+	" 		    vColor = vec4( 1.0, 0.0, 1.0, 0.5); \n" + 
+	"       } else if(col[0] > 0.5) { \n" + 
+	" 		    vColor = vec4( 0.0, 0.0, 1.0, 0.5); \n" + 
+	"       } else if(col[0] > 0.2) { \n" + 
+	" 		    vColor = vec4( 0.0, 1.0, 1.0, 0.5); \n" + 
+	"       } else if(col[0] > -0.2) { \n" + 
+	" 		    vColor = vec4( 0.0, 1.0, 0.0, 0.5); \n" + 
+	"       } else if(col[0] > -0.5) { \n" + 
+	" 		    vColor = vec4( 1.0, 1.0, 0.0, 0.5); \n" + 
+	"       } else if(col[0] > -0.8) { \n" + 
+	" 		    vColor = vec4( 1.0, 0.5, 0.0, 0.5); \n" + 
+	"       } else { \n" +
+	" 		    vColor = vec4( 1.0, 0.0, 0.0, 0.5); \n" + 
+	"       } \n" +
 	" 	} \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
 	"	gl_PointSize = 2.0; 																		\n" + 

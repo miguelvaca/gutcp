@@ -123,6 +123,8 @@
 				container.appendChild( renderer.domElement );
 
 				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				controls.autoRotate = true;
+				controls.autoRotateSpeed = -2.0;
 
 				window.addEventListener( 'resize', onWindowResize, false );
 								
@@ -511,6 +513,7 @@
 				
 				// Render the scene, and update the stats:
 				renderer.render( scene, camera );
+				controls.update();
 				//stats.update();
 			}
 		</script>
