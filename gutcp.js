@@ -280,8 +280,12 @@ var electronExcitedVertexShader =
 	"	if((length(newPosition - zzz) < (newPhotonRadius + 5.0)) && (length(newPosition - zzz) > (newPhotonRadius - 5.0))) { \n" + 
 	"		// newPosition += 0.005 * abs(length(newPosition - zzz) - newPhotonRadius) * vec3(newPosition - zzz); \n " + 
 	"		newPosition += 0.15 * excitedElectronRadius * normalize(vec3(newPosition - zzz)); \n " + 
-	" 		float sinx = sin(10.0 * uTime); \n" + 
-	" 		float cosx = cos(10.0 * uTime); \n" + 
+	" 		float sinx = -1.0; \n" + 
+	" 		float cosx = 0.0; \n" + 
+	"       if(zOffset >= 0.0) { \n" +
+	"   		sinx = sin(20.0 * uTime); \n" + 
+	" 	    	cosx = cos(20.0 * uTime); \n" + 
+	"       } \n" +
 	"   	mat3  rotation = mat3( cosx, 0.0,  sinx, 0.0, 1.0, 0.0, -sinx, 0.0, cosx); 				\n" + 
 	" 		vec3 col = rotation * normalize(newPosition); \n" + 
 	"       if(col[0] > 0.8) { \n" + 
