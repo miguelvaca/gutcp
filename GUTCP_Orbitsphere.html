@@ -231,7 +231,7 @@
 				folder3.add( ocvf, "theta", 60, 180, 30).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, value, ocvf.phi); } );
 				folder3.add( ocvf, "phi", 30, 180, 30).onChange( function(value) { ocvf.loadNewGeometry(2, 100.0, ocvf.theta, value); } );
 				folder3.add( ocvf, "scale", 0.2, 5.0, 0.1).onChange( function(value) { ocvf.cvfUniforms.scale.value = value; } );
-				folder3.add( ocvf, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { ocvf.cvfUniforms.sphere.value = value; } );
+				//folder3.add( ocvf, "sphere", 0.01, 1.0, 0.01).onChange( function(value) { ocvf.cvfUniforms.sphere.value = value; } );
 				folder3.addColor( ocvf, "color").onChange( function(value) { ocvf.setColor(value); } );
 
 				// Add a folder for the Y00 Eq 1.103 parameters:
