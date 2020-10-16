@@ -254,6 +254,7 @@ var electronExcitedVertexShader =
 	"uniform float normalElectronRadius; 	\n" + 
 	"uniform float excitedElectronRadius; 	\n" + 
 	"uniform float photonRadius; 			\n" + 
+	"uniform float transparency;            \n" + 
 	"uniform bool  animate; 				\n" + 
 	"uniform bool  swapAnimDir; 			\n" + 
 	"uniform vec4  color; 					\n" + 
@@ -265,9 +266,9 @@ var electronExcitedVertexShader =
 	"	if(animate) { 						\n" + 
 	"		float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0/wavesPerRing) * wavesPerRing; \n" + 
 	"		//vColor = vec4( (1.0-bright)*color[0], (1.0-bright)*color[1], (1.0-bright)*color[2], color[3] ); \n" + 
-	"		vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	\n" + 
+	"		vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], transparency );	\n" + 
 	"	} else { 																					\n" + 
-	"		vColor = color; 																		\n" + 
+	"		vColor = vec4(color.xyz, transparency); 												\n" + 
 	"	} 																							\n" + 
 	"	\n" 																							+	
 	"	vec3 newPosition = position.xyz*(normalElectronRadius/10.0); 								\n" + 
@@ -289,19 +290,19 @@ var electronExcitedVertexShader =
 	"   	mat3  rotation = mat3( cosx, 0.0,  sinx, 0.0, 1.0, 0.0, -sinx, 0.0, cosx); 				\n" + 
 	" 		vec3 col = rotation * normalize(newPosition); \n" + 
 	"       if(col[0] > 0.8) { \n" + 
-	" 		    vColor = vec4( 1.0, 0.0, 1.0, 0.5); \n" + 
+	" 		    vColor = vec4( 1.0, 0.0, 1.0, transparency); \n" + 
 	"       } else if(col[0] > 0.5) { \n" + 
-	" 		    vColor = vec4( 0.0, 0.0, 1.0, 0.5); \n" + 
+	" 		    vColor = vec4( 0.0, 0.0, 1.0, transparency); \n" + 
 	"       } else if(col[0] > 0.2) { \n" + 
-	" 		    vColor = vec4( 0.0, 1.0, 1.0, 0.5); \n" + 
+	" 		    vColor = vec4( 0.0, 1.0, 1.0, transparency); \n" + 
 	"       } else if(col[0] > -0.2) { \n" + 
-	" 		    vColor = vec4( 0.0, 1.0, 0.0, 0.5); \n" + 
+	" 		    vColor = vec4( 0.0, 1.0, 0.0, transparency); \n" + 
 	"       } else if(col[0] > -0.5) { \n" + 
-	" 		    vColor = vec4( 1.0, 1.0, 0.0, 0.5); \n" + 
+	" 		    vColor = vec4( 1.0, 1.0, 0.0, transparency); \n" + 
 	"       } else if(col[0] > -0.8) { \n" + 
-	" 		    vColor = vec4( 1.0, 0.5, 0.0, 0.5); \n" + 
+	" 		    vColor = vec4( 1.0, 0.5, 0.0, transparency); \n" + 
 	"       } else { \n" +
-	" 		    vColor = vec4( 1.0, 0.0, 0.0, 0.5); \n" + 
+	" 		    vColor = vec4( 1.0, 0.0, 0.0, transparency); \n" + 
 	"       } \n" +
 	" 	} \n" + 
 	"	vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 							\n" + 
@@ -1002,6 +1003,7 @@ class CVF {
 		this.z_offset = 0.0;
 		this.rotate = false;
 		this.rhcp = false;
+		this.transparency = 1.0;
 		
 		// Create the shader uniforms:
 		this.cvfUniforms = {
@@ -1020,7 +1022,8 @@ class CVF {
 			zOffset: 	{ value: this.z_offset },
 			rotate: 	{ value: this.rotate },
 			rhcp: 		{ value: this.rhcp },
-			color:   	{ value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) }
+			color:   	{ value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) },
+			transparency: { value: this.transparency }
 		};
 		
 		this.theta = THETA;
@@ -1223,6 +1226,7 @@ class CVF {
 	setOpacity(value) {
 		this.opacity = value;
 		this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+		this.cvfUniforms.transparency.value = this.opacity;
 	}
 	
 	// Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
@@ -1234,6 +1238,12 @@ class CVF {
 	// Update the time for the shader to see:
 	addTime( delta_time ) {
 		this.cvfUniforms.uTime.value += delta_time * this.cvfUniforms.waveSpeed.value;
+	}
+	
+	// Update the time for the shader to see:
+	setScale( value ) {
+	    this.scale = value;
+		this.cvfUniforms.scale.value = this.scale;
 	}
 	
 	// Update the time for the shader to see:
@@ -1260,7 +1270,7 @@ class CVF {
 class DensityMap {
 	constructor() {
 		// Heatmap specific stuff:
-		this.densitymapGeometry  = new THREE.IcosahedronBufferGeometry( 98, 5 );
+		this.densitymapGeometry  = new THREE.IcosahedronBufferGeometry( 98, 20 );
 		this.densitymapVertices  = this.densitymapGeometry.getAttribute('position');
 		this.densitymapHistogram = this.densitymapGeometry.getAttribute('uv');
 		//var densitymapColor = new Float32Array( densitymapVertices.count * 3 );
