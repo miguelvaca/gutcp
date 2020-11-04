@@ -10,10 +10,12 @@
     <link type="text/css" href="css/visualisation.css" rel="stylesheet"/>
 </head>
 <body>
+    <!--
     <div id="info">
         <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 4 - Photon capture by free electron</a>
-        <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
+        <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">Miguel Vaca</a> 
     </div>
+    -->
 
     <script src="https://threejs.org/build/three.js"></script>
     <script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
@@ -23,14 +25,21 @@
     <script type="x-shader/x-vertex" id="vertexShader">
         uniform float uTime; 		
         uniform float scale; 		
+        uniform bool  animate; 
+        uniform bool  swapAnimDir;
         uniform vec4  color; 		
         uniform vec4  background; 	
         varying vec4  vColor; 		
         void main()
         {
+            if(animate) { 
+                float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0);
+                vColor = vec4( color[0], color[1], color[2], (1.0 - bright) );
+            } else { 
+                vColor = color; 
+            } 
             vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
 	        gl_PointSize = 2.0; 
-	        vColor = color;
 		    gl_Position = projectionMatrix * mvPosition; 
         }
     </script>
@@ -68,9 +77,14 @@
                 var mMat = math.matrix([[0.5 + 0.5*Math.cos(kM),        oneOnRootTwo * Math.sin(kM), -0.5 + oneOnRootTwo * Math.cos(kM)], 
                                         [-oneOnRootTwo * Math.sin(kM),  Math.cos(kM), -oneOnRootTwo * Math.sin(kM)], 
                                         [-0.5 + oneOnRootTwo * Math.cos(kM), oneOnRootTwo * Math.sin(kM), 0.5 + oneOnRootTwo * Math.cos(kM)]]);
+                /*
                 var piMat = math.matrix([[Math.cos(Math.PI), Math.sin(Math.PI), 0.0], 
                                          [-Math.sin(Math.PI), Math.cos(Math.PI), 0.0], 
                                          [0.0, 0.0, 1.0]]);
+                */
+                var piMat = math.matrix([[-1.0,  0.0,  0.0], 
+                                         [ 0.0, -1.0,  0.0], 
+                                         [ 0.0,  0.0,  1.0]]);
                 const kN = ((i_n * Math.PI)/(2*N));
                 var nMat = math.matrix([[0.5 + 0.5 * Math.cos(kN), oneOnRootTwo * Math.sin(kN), 0.5 - 0.5 * Math.cos(kN)],
                                         [-oneOnRootTwo * Math.sin(kN), Math.cos(kN), oneOnRootTwo * Math.sin(kN)],
@@ -129,19 +143,25 @@
                 this.scene = 0;
                 
                 // Variable handles for dat.gui to manipulate:
-                this.opacity = 1.0;
-                this.color = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
                 this.visibility = true;
                 this.scale = 1.0;
+                this.uTime = 0.0;
+                this.animate = true;
+                this.swapAnimDir = false;
+                this.color = [255, 0, 0, 1.0]; 	// Let's default to RED in [R, G, B, A]
                 this.background = [0.0, 0.0, 0.0];
+                this.opacity = 1.0;
     
                 // Create the shader uniforms:
                 this.cvfUniforms = {
                     //cameraConstant: { value: getCameraConstant( camera ) },
-                    background: { value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) },
                     radius:  	{ value: this.radius },
                     scale:   	{ value: this.scale },
+                    uTime:      { value: this.uTime },
+                    animate:    { value: this.animate },
+                    swapAnimDir:{ value: this.swapAnimDir },
                     color:   	{ value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) },
+                    background: { value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) },
                     opacity:    { value: this.opacity }
                 };
     
@@ -172,7 +192,6 @@
                 // Create and initialise the ShaderMaterial:
                 this.material = new THREE.ShaderMaterial( {
                     uniforms:       this.cvfUniforms,
-                    //vertexShader:   vertex_shader,
                     vertexShader:   document.getElementById('vertexShader').textContent,
                     fragmentShader: document.getElementById('fragmentShader').textContent,
                     transparent:    true,
@@ -226,6 +245,13 @@
             // Select whether to animate or not:
             setAnimate(value) {
                 this.cvfUniforms.animate.value = (value) ? true : false;
+                this.animate = this.cvfUniforms.animate.value;
+            }
+
+            // Select whether to animate or not:
+            setSwapAnimDir(value) {
+                this.cvfUniforms.swapAnimDir.value = (value) ? true : false;
+                this.swapAnimDir = this.cvfUniforms.swapAnimDir.value;
             }
 
             // Select whether to animate or not:
@@ -241,12 +267,13 @@
             setColor(value) {
                 this.color = value;
                 this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+                console.log(value);
             }
 
             setOpacity(value) {
                 this.opacity = value;
                 this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
-                this.cvfUniforms.transparency.value = this.opacity;
+                this.cvfUniforms.opacity.value = this.opacity;
             }
 
             // Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
@@ -257,7 +284,9 @@
 
             // Update the time for the shader to see:
             addTime( delta_time ) {
-                this.cvfUniforms.uTime.value += delta_time * this.cvfUniforms.waveSpeed.value;
+                this.cvfUniforms.uTime.value += delta_time;
+                // this.cvfUniforms.uTime.value += delta_time * this.cvfUniforms.waveSpeed.value;
+                //console.log(this.cvfUniforms.uTime.value);
             }
 
             // Update the time for the shader to see:
@@ -459,12 +488,13 @@
                 sceneObject.add(this.gridGeometry);
             }
         }
-
   
         var container; 
         var camera, scene, renderer, geometry, controls;
         var clock = new THREE.Clock();
         var tick = 0;
+        
+        var electron, grid;
 
         init();
         animate();
@@ -478,7 +508,7 @@
             effectController = {
                 waveSpeed: 			0.50,
                 wavesPerRing: 		1.0,
-                enableBlkSphere: 	false,
+                color: 		        [0, 0, 0],
                 background: 		[0, 0, 0]
             };
 
@@ -506,19 +536,36 @@
             
             // Create the Y00 visualisation geometry and insert it into the scene:
             electron = new FreeElectronPhotonAbsorption(100.0, 12, 12, 30);
-            electron.setColor([0, 255, 0, 1.0]);
-            electron.setBackground(effectController.background);
+            //electron.setColor([0, 255, 0, 1.0]);
+            //electron.setBackground(effectController.background);
             electron.setVisibility(true);
             electron.insertScene(scene);
             
-            var grid = new Grid();
+            grid = new Grid();
             grid.insertScene(scene);
             
             // Add all the controls for the various visualisations
-            //initGUI();
+            initGUI();
             //addTextOutput("MB","#f08","#201");
         }
     
+        function initGUI() {
+            // Create the parameter control panel (on the right)
+            var gui = new dat.GUI();
+
+            // Add a folder to hold all the common parameters:
+            var folder1 = gui.addFolder( 'Common parameters' );
+            folder1.add( electron, "animate" ).onChange( function(value) { electron.setAnimate(value); } );
+            folder1.add( electron, "swapAnimDir" ).onChange( function(value) { electron.setSwapAnimDir(value); } );
+            folder1.addColor( electron, "color").onChange( function(value) { 
+                electron.setColor(value);
+            } );
+            folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
+            folder1.addColor( effectController, "background").onChange( function(value) { 
+                scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
+            } );
+        }
+        
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -536,7 +583,7 @@
             if ( tick < 0 ) tick = 0;
             
             // Update the material uniforms with the time, to pass on the elapsed time:
-            //becvf.addTime(delta);
+            electron.addTime(delta);
             
             // Tell WebGL to call the 'animate()' function for the next screen refresh:
             requestAnimationFrame( animate );
