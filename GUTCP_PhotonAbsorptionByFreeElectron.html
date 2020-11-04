@@ -522,7 +522,6 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(effectController.background[0]/255.0, effectController.background[1]/255.0, effectController.background[2]/255.0);
 
-            //renderer = new THREE.WebGLRenderer({antialias:true});
             renderer = new THREE.WebGLRenderer({antialias:true});
             renderer.setPixelRatio( window.devicePixelRatio );
             renderer.setSize( window.innerWidth, window.innerHeight );
@@ -530,14 +529,10 @@
 
             controls = new THREE.OrbitControls( camera, renderer.domElement );
 
-            //stats = new Stats();
-            //container.appendChild( stats.dom );
             window.addEventListener( 'resize', onWindowResize, false );
             
             // Create the Y00 visualisation geometry and insert it into the scene:
             electron = new FreeElectronPhotonAbsorption(100.0, 12, 12, 30);
-            //electron.setColor([0, 255, 0, 1.0]);
-            //electron.setBackground(effectController.background);
             electron.setVisibility(true);
             electron.insertScene(scene);
             
@@ -546,7 +541,6 @@
             
             // Add all the controls for the various visualisations
             initGUI();
-            //addTextOutput("MB","#f08","#201");
         }
     
         function initGUI() {
