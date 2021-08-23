@@ -62,13 +62,6 @@
             if((uv.y + open) > 1.0) {
                 // Fix newRadius to radius:
                 newPosition.y = radius;
-                
-                // Rotate about BECVF
-                
-                // Rotate about OCVF
-            } else {
-                // Set radius to increase, causing annular ring effect:
-                
             }
             
             // Rotate about z to produce the ring:
@@ -596,7 +589,7 @@
             window.addEventListener( 'resize', onWindowResize, false );
             
             // Create the Y00 visualisation geometry and insert it into the scene:
-            electron = new FreeElectronPhotonAbsorption(100.0, 60, 60);
+            electron = new FreeElectronPhotonAbsorption(100.0, 144, 60);
             electron.setVisibility(true);
             electron.insertScene(scene);
             
