@@ -56,7 +56,7 @@
         {
             vec3 newPosition = position.xyz;
             
-            float baseline = radius * tan(1.5 * open) + (radius * 0.3183);  
+            float baseline = radius * tan(1.57 * open) + (radius * 0.3183);  
             float curve_angle = radius / baseline;
             
             newPosition.x = baseline * cos(uv.y * curve_angle) - baseline + (1.0 - open) * 0.3183 * radius;
@@ -143,43 +143,6 @@
                 return retval;
             }
             
-            /* ========================
-    
-            static createGeometry(radius, M, N, PHI) {
-                // Storage for all the locations for the geometry:
-                var positions;
-                var uvs;
-
-                // Local loop variables:
-                var retval = [];
-                retval[0] = [];
-                retval[1] = [];
-                var vtx = [];
-                for ( var m = 0; m < M; m++ ) {
-                    for ( var n = 0; n < N; n++ ) {
-                        var p = 0;
-                        var q = 0;
-                        positions = new Float32Array( PHI * 3 );
-                        uvs = new Float32Array( PHI * 2 );
-                        for ( var phi = 0; phi < PHI; phi++ ) {
-                            vtx = FreeElectronPhotonAbsorption.getVertex(radius, m, M, n, N, phi, PHI);
-                            positions[ p++ ] = vtx[0];
-                            positions[ p++ ] = vtx[1];
-                            positions[ p++ ] = vtx[2];
-            
-                            // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
-                            uvs[ q++ ] = m / ( M - 1 );
-                            uvs[ q++ ] = n / ( N - 1 );
-                        }
-                        // Finished the loop, so now create a LineLoop for it:
-                        retval[0].push(positions);
-                        retval[1].push(uvs);
-                    }
-                }
-                return retval;
-            }
-            */
-        
             constructor(radius, segments, angles) {
                 this.radius = radius;
                 this.segments = segments;
@@ -550,9 +513,7 @@
 
         init();
         animate();
-        
-        //console.log(FreeElectronPhotonAbsorption.getVertex(100, 0, 12, 0, 12, 0, 60));
-        
+               
         function init() {
 
             // A global structure used to store a couple of the adjustable parameters that don't easily
