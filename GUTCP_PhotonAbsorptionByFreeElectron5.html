@@ -92,12 +92,12 @@
             
             if((uv.y + open) > 1.0) {
                 // Rotate about BECVF
-                vec3 rotation_axis = normalize(vec3(0.707, 0.0, 0.707));
-                float rotation_angle = 6.2832 * uv.y;
+                rotation_axis = normalize(vec3(0.707, 0.0, 0.707));
+                rotation_angle = 6.2832 * uv.y;
             
-                float cos_rot_angle = cos(rotation_angle);
-                float sin_rot_angle = sin(rotation_angle);
-                mat3  rotation_m = mat3( cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.x,2.0), 
+                cos_rot_angle = cos(rotation_angle);
+                sin_rot_angle = sin(rotation_angle);
+                rotation_m = mat3( cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.x,2.0), 
                     (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.y+sin_rot_angle*rotation_axis.z,
                     (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.z-sin_rot_angle*rotation_axis.y,
                     (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.y-sin_rot_angle*rotation_axis.z,
@@ -129,8 +129,6 @@
                 */
             }
 
-
-        	
             vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 
         	vColor = vec4(color.xyz, opacity);
 	        gl_PointSize = 2.0; 
@@ -181,8 +179,8 @@
                     positions = new Float32Array( angles * 3 );
                     uvs = new Float32Array( angles * 2 );
                     for ( var i_angle = 0; i_angle < angles; i_angle++ ) {
-                        positions[ p++ ] = 10.0 * i_angle;
-                        positions[ p++ ] = 10.0 * i_segment;
+                        positions[ p++ ] = 1.0 * i_angle;
+                        positions[ p++ ] = 1.0 * i_segment;
                         positions[ p++ ] = 0.0;
     
                         // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
