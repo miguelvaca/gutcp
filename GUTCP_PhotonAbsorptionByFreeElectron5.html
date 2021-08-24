@@ -172,8 +172,8 @@
                     positions = new Float32Array( angles * 3 );
                     uvs = new Float32Array( angles * 2 );
                     for ( var i_angle = 0; i_angle < angles; i_angle++ ) {
-                        positions[ p++ ] = 1.0 * i_angle;
-                        positions[ p++ ] = 1.0 * i_segment;
+                        positions[ p++ ] = 0.0; // 1.0 * i_angle;
+                        positions[ p++ ] = 0.0; // 1.0 * i_segment;
                         positions[ p++ ] = 0.0;
     
                         // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
