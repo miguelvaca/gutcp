@@ -24,7 +24,7 @@
 
     <script type="x-shader/x-vertex" id="vertexShader">
         uniform float uTime; 		
-        uniform float scale; 		
+        uniform float sweep; 		
         uniform bool  animate; 
         uniform bool  swapAnimDir;
         uniform vec4  color; 		
@@ -32,13 +32,11 @@
         varying vec4  vColor; 		
         void main()
         {
-            if(animate) { 
-                float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0);
-                bright = (bright > 0.95) ? 1.0 : 0.0;
-                vColor = vec4( color[0], color[1], color[2], bright );
-            } else { 
-                vColor = color; 
-            } 
+            if(sweep > uv.y) {
+                vColor = vec4( color[0], color[1], color[2], 1.0 );; 
+            } else {
+                vColor = vec4( color[0], color[1], color[2], 0.0 );; 
+            }
             vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
 	        gl_PointSize = 2.0; 
 		    gl_Position = projectionMatrix * mvPosition; 
@@ -82,7 +80,6 @@
                 cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.z,2.0) ); 
                 
             newPosition = rotation_m * newPosition; 
-            
             
             rotation_axis = normalize(vec3(1.0, 0.0, 1.0));
             if((uv.y + capture) <= 1.0) {
@@ -139,6 +136,65 @@
     <script>
         class FreeElectronPhotonAbsorption {
             
+            // Return an individual CVF vertex:
+            // mode    = 1:BECVF, 2:OCVF
+            // radius  = CVF radius (typically 100.0)
+            // i_n     = iterator for N
+            // N       = number of N rotations
+            // i_m     = iterator for M
+            // M       = number of M rotations
+            // i_phi   = iterator for PHI
+            // PHI     = number of point in the current loop
+            static getY00Vertex(radius, i_n, N, i_m, M, i_phi, PHI) {
+            
+                var phi = 2.0 * Math.PI * i_phi / PHI;
+                var becvf;
+
+                becvf = [(radius * Math.cos(phi)),
+                         (radius * Math.sin(phi)),
+                         (0.0)];
+                
+                var rotation_axis = [0.707, 0.0, 0.707];
+                var m_matrix = [];
+                var m2piONm = 2.0 * Math.PI * i_n / N;
+
+                // The m_matrix is identical for both Y00 geometry types:
+                m_matrix[0+0] = (Math.cos(m2piONm) + ((rotation_axis[0]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[0+1] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[0+2] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[3+0] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[3+1] = (Math.cos(m2piONm) + ((rotation_axis[1]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[3+2] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+0] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[6+1] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+2] = (Math.cos(m2piONm) + ((rotation_axis[2]**2.0) * (1.0 - Math.cos(m2piONm))));
+                
+                var tx = m_matrix[0+0] * becvf[0] + m_matrix[0+1] * becvf[1] + m_matrix[0+2] * becvf[2];
+                var ty = m_matrix[3+0] * becvf[0] + m_matrix[3+1] * becvf[1] + m_matrix[3+2] * becvf[2];
+                var tz = m_matrix[6+0] * becvf[0] + m_matrix[6+1] * becvf[1] + m_matrix[6+2] * becvf[2];
+
+                
+                rotation_axis = [-0.707, 0.0, 0.707];
+                m2piONm = 2.0 * Math.PI * i_m / M;
+
+                // The m_matrix is identical for both Y00 geometry types:
+                m_matrix[0+0] = (Math.cos(m2piONm) + ((rotation_axis[0]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[0+1] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[0+2] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[3+0] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[3+1] = (Math.cos(m2piONm) + ((rotation_axis[1]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[3+2] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+0] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[6+1] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+2] = (Math.cos(m2piONm) + ((rotation_axis[2]**2.0) * (1.0 - Math.cos(m2piONm))));
+                
+                var vertex = [];
+                vertex[0] = m_matrix[0+0] * tx + m_matrix[0+1] * ty + m_matrix[0+2] * tz;
+                vertex[1] = m_matrix[3+0] * tx + m_matrix[3+1] * ty + m_matrix[3+2] * tz;
+                vertex[2] = m_matrix[6+0] * tx + m_matrix[6+1] * ty + m_matrix[6+2] * tz;
+                return vertex;
+             }
+    
             static createGeometry(segments, angles ) { 
                 // Storage for all the locations for the geometry:
                 var positions;
@@ -170,6 +226,40 @@
                 return retval;
             }
             
+            // Static function that returns a two-element array containing geometry and uv for GUTCP Orbitsphere geometry.
+            // Y00 BECVF (Eq 1.103) : mode == 1
+            // Y00 OCVF  (Eq 1.109) : mode == 2
+            static createY00Geometry (radius, N, M, PHI) {
+                // Storage for all the locations for the BECVF:
+                var positions;
+                var uvs;
+        
+                var retval = [];
+                retval[0] = [];
+                retval[1] = [];
+                var vtx = [];
+                for (var i_m = 1; i_m <= M; i_m++) {
+                    for (var i_n = 1; i_n <= N; i_n++) {
+                        var p = 0;
+                        var q = 0;
+                        positions = new Float32Array( PHI * 3 );
+                        uvs = new Float32Array( PHI * 2 );
+                        for (var i_phi = 0; i_phi < PHI; i_phi++) {
+                            vtx = FreeElectronPhotonAbsorption.getY00Vertex(radius, i_n, N, i_m, M, i_phi, PHI);
+                            positions[p++] = vtx[0];
+                            positions[p++] = vtx[1];
+                            positions[p++] = vtx[2];
+                    
+                            uvs[ q++ ] = i_phi / ( PHI - 1 );
+                            uvs[ q++ ] = i_m / ( M - 1 );
+                        }
+                        retval[0].push(positions);
+                        retval[1].push(uvs);
+                    }
+                }
+                return retval;
+            }
+            
             constructor(radius, segments, angles) {
                 this.radius = radius;
                 this.segments = segments;
@@ -181,6 +271,7 @@
                 // Variable handles for dat.gui to manipulate:
                 this.visibility = true;
                 this.capture = 1.0;
+                this.sweep = 0.0;
                 this.uTime = 0.0;
                 //this.animate = true;
                 //this.swapAnimDir = false;
@@ -193,6 +284,7 @@
                     //cameraConstant: { value: getCameraConstant( camera ) },
                     radius:  	{ value: this.radius },
                     capture:   	{ value: this.capture },
+                    sweep:   	{ value: this.sweep },
                     uTime:      { value: this.uTime },
                     //animate:    { value: this.animate },
                     //swapAnimDir:{ value: this.swapAnimDir },
@@ -215,9 +307,12 @@
                         this.object3Ds.children[i].geometry.dispose();
                     }
                     // Delete the materials:
-                    this.material.dispose();
+                    this.material1.dispose();
+                    this.material2.dispose();
                 }
     
+                this.object3Ds = new THREE.Object3D();
+                
                 // Re-create the geometries:
                 var electronGeometry = FreeElectronPhotonAbsorption.createGeometry (segments, angles);
     
@@ -228,18 +323,18 @@
                 // console.log(this.positions.length);
                 
                 // Create and initialise the ShaderMaterial:
-                this.material = new THREE.ShaderMaterial( {
+                this.material1 = new THREE.ShaderMaterial( {
                     uniforms:       this.cvfUniforms,
                     vertexShader:   document.getElementById('electronVertexShader').textContent,
                     fragmentShader: document.getElementById('fragmentShader').textContent,
                     transparent:    true,
                     depthTest:      false, // Stop the lines from disappearing!
                     wireframe:      false,
-                    opacity: 0
+                    opacity:        0
                 } );
-                this.material.extensions.drawBuffers = true;
+                this.material1.extensions.drawBuffers = true;
 
-                this.object3Ds = new THREE.Object3D();
+                // Initial geometry for the free electron that sweeps to form a BECVF:
                 for(var p=0, pl=this.positions.length; p<pl; ++p) {
                     this.geometry = new THREE.BufferGeometry();
                     // Add the vertices and uv arrays as attributes into the geometry:
@@ -247,7 +342,42 @@
                     this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
         
                     // Create the Lines geometry and load the into the scene:
-                    var lines = new THREE.LineLoop( this.geometry, this.material );
+                    var lines = new THREE.LineLoop( this.geometry, this.material1 );
+                    lines.matrixAutoUpdate = false;
+                    lines.updateMatrix();
+                    this.object3Ds.add(lines);
+                }
+                
+                // Re-create the geometries:
+                electronGeometry = FreeElectronPhotonAbsorption.createY00Geometry (radius, segments, segments, angles);
+    
+                // The geometry, based on BufferGeometry for efficiency:
+                this.positions = electronGeometry[0];
+                this.uvs = electronGeometry[1];
+
+                // console.log(this.positions.length);
+                
+                // Create and initialise the ShaderMaterial:
+                this.material2 = new THREE.ShaderMaterial( {
+                    uniforms:       this.cvfUniforms,
+                    vertexShader:   document.getElementById('vertexShader').textContent,
+                    fragmentShader: document.getElementById('fragmentShader').textContent,
+                    transparent:    true,
+                    depthTest:      false, // Stop the lines from disappearing!
+                    wireframe:      false,
+                    opacity:        0
+                } );
+                this.material2.extensions.drawBuffers = true;
+                
+                // Geometry for BECVF to sweep through to Y(00):
+                for(var p=0, pl=this.positions.length; p<pl; ++p) {
+                    this.geometry = new THREE.BufferGeometry();
+                    // Add the vertices and uv arrays as attributes into the geometry:
+                    this.geometry.setAttribute( 'position', new THREE.BufferAttribute( this.positions[p], 3 ) );
+                    this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
+        
+                    // Create the Lines geometry and load the into the scene:
+                    var lines = new THREE.LineLoop( this.geometry, this.material2 );
                     lines.matrixAutoUpdate = false;
                     lines.updateMatrix();
                     this.object3Ds.add(lines);
@@ -286,6 +416,12 @@
             setCapture(value) {
                 this.cvfUniforms.capture.value = value;
                 this.capture = this.cvfUniforms.capture.value;
+            }
+
+            // Set how opened or closed the electron is:
+            setSweep(value) {
+                this.cvfUniforms.sweep.value = value;
+                this.sweep = this.cvfUniforms.sweep.value;
             }
 
             // Select whether to animate or not:
@@ -577,7 +713,7 @@
             window.addEventListener( 'resize', onWindowResize, false );
             
             // Create the Y00 visualisation geometry and insert it into the scene:
-            electron = new FreeElectronPhotonAbsorption(100.0, 144, 60);
+            electron = new FreeElectronPhotonAbsorption(100.0, 64, 60);
             electron.setVisibility(true);
             electron.insertScene(scene);
             
@@ -599,6 +735,7 @@
             // Add a folder to hold all the common parameters:
             var folder1 = gui.addFolder( 'Common parameters' );
             folder1.add( electron, "capture", 0.0, 1.0, 0.002 ).onChange( function(value) { electron.setCapture(value); } );
+            folder1.add( electron, "sweep", 0.0, 1.0, 0.002 ).onChange( function(value) { electron.setSweep(value); } );
             folder1.addColor( electron, "color").onChange( function(value) { 
                 electron.setColor(value);
             } );
