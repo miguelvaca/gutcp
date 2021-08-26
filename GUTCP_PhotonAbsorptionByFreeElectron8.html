@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>GUTCP_PhotonAbsorptionByFreeElectron</title>
+    <meta name="generator" content="BBEdit 13.5" />
+    <meta charset="utf-8">
+    
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link type="text/css" href="css/base.css" rel="stylesheet"/>
+    <link type="text/css" href="css/visualisation.css" rel="stylesheet"/>
+</head>
+<body>
+    <!--
+    <div id="info">
+        <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 4 - Photon capture by free electron</a>
+        <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">Miguel Vaca</a> 
+    </div>
+    -->
+
+    <script src="https://threejs.org/build/three.js"></script>
+    <script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
+    <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/7.5.1/math.min.js"></script>
+
+    <script type="x-shader/x-vertex" id="vertexShader">
+        uniform float uTime; 		
+        uniform float scale; 		
+        uniform bool  animate; 
+        uniform bool  swapAnimDir;
+        uniform vec4  color; 		
+        uniform vec4  background; 	
+        varying vec4  vColor; 		
+        void main()
+        {
+            if(animate) { 
+                float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0);
+                bright = (bright > 0.95) ? 1.0 : 0.0;
+                vColor = vec4( color[0], color[1], color[2], bright );
+            } else { 
+                vColor = color; 
+            } 
+            vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
+	        gl_PointSize = 2.0; 
+		    gl_Position = projectionMatrix * mvPosition; 
+        }
+    </script>
+    
+    <script type="x-shader/x-vertex" id="electronVertexShader">
+        uniform float uTime; 
+        uniform float radius; 
+        uniform float capture; // 0.0 = closed; 1.0 = captureed
+        uniform vec4  color; 
+        uniform vec4  background; 	
+        uniform float opacity;
+        varying vec4  vColor; 
+        void main()
+        {
+            vec3 newPosition;
+            newPosition.x = 0.0;
+            newPosition.y = radius * (uv.y + capture);
+            newPosition.z = 0.0;
+            
+            if((uv.y + capture) > 1.0) {
+                // Fix newRadius to radius:
+                newPosition.y = radius;
+            } 
+            
+            // Rotate about z to produce the ring:
+            vec3 rotation_axis = normalize(vec3(0.0, 0.0, 1.0));
+            float rotation_angle = 6.2832 * uv.x;
+            
+            float cos_rot_angle = cos(rotation_angle);
+            float sin_rot_angle = sin(rotation_angle);
+            mat3  rotation_m = mat3( cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.x,2.0), 
+                (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.y+sin_rot_angle*rotation_axis.z,
+                (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.z-sin_rot_angle*rotation_axis.y,
+                (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.y-sin_rot_angle*rotation_axis.z,
+                cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.y,2.0), 					
+                (1.0-cos_rot_angle)*rotation_axis.y*rotation_axis.z+sin_rot_angle*rotation_axis.x,
+                (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.z+sin_rot_angle*rotation_axis.y,
+                (1.0-cos_rot_angle)*rotation_axis.y*rotation_axis.z-sin_rot_angle*rotation_axis.x,
+                cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.z,2.0) ); 
+                
+            newPosition = rotation_m * newPosition; 
+            
+            rotation_axis = normalize(vec3(1.0, 0.0, 1.0));
+            if((uv.y + capture) <= 1.0) {
+                // Rotate about BECVF
+                rotation_angle = 6.2832 * capture;
+            } else {
+                rotation_angle = 6.2832 * (1.0 - uv.y);
+            }
+            cos_rot_angle = cos(rotation_angle);
+            sin_rot_angle = sin(rotation_angle);
+            rotation_m = mat3( cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.x,2.0), 
+                (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.y+sin_rot_angle*rotation_axis.z,
+                (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.z-sin_rot_angle*rotation_axis.y,
+                (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.y-sin_rot_angle*rotation_axis.z,
+                cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.y,2.0), 					
+                (1.0-cos_rot_angle)*rotation_axis.y*rotation_axis.z+sin_rot_angle*rotation_axis.x,
+                (1.0-cos_rot_angle)*rotation_axis.x*rotation_axis.z+sin_rot_angle*rotation_axis.y,
+                (1.0-cos_rot_angle)*rotation_axis.y*rotation_axis.z-sin_rot_angle*rotation_axis.x,
+                cos_rot_angle+(1.0-cos_rot_angle)*pow(rotation_axis.z,2.0) ); 
+            
+            newPosition = rotation_m * newPosition; 
+        	
+            vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 
+        	vColor = vec4(color.xyz, opacity);
+	        gl_PointSize = 2.0; 
+		    gl_Position = projectionMatrix * mvPosition; 
+        }
+    </script>
+    
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        varying vec4 vColor; 
+        void main()
+        {
+            gl_FragColor = vColor; 
+        }
+    </script>
+    
+    <script type="x-shader/x-vertex" id="gridVertexShader">
+        uniform float gridContrast; 
+        uniform vec4 background; 	 
+        varying vec4 vColor; 		 
+
+        void main() { 
+            //vColor = vec4( gridContrast, gridContrast, gridContrast, 1.0 ); 
+            vColor = vec4( (background[0]<0.5) ? gridContrast*(1.0-background[0])+background[0] : background[0] - gridContrast*background[0],
+                    (background[1]<0.5) ? gridContrast*(1.0-background[1])+background[1] : background[1] - gridContrast*background[1],
+                    (background[2]<0.5) ? gridContrast*(1.0-background[2])+background[2] : background[2] - gridContrast*background[2], 1.0 ); 
+            vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
+            gl_PointSize = 2.0; 
+            gl_Position = projectionMatrix * mvPosition; 
+        }
+    </script>
+    
+    <script>
+        class FreeElectronPhotonAbsorption {
+            
+            static createGeometry(segments, angles ) { 
+                // Storage for all the locations for the geometry:
+                var positions;
+                var uvs;
+
+                // Local loop variables:
+                var retval = [];
+                retval[0] = [];
+                retval[1] = [];
+                //var vtx = [];
+                for ( var i_segment = 0; i_segment < segments; i_segment++ ) {
+                    var p = 0;
+                    var q = 0;
+                    positions = new Float32Array( angles * 3 );
+                    uvs = new Float32Array( angles * 2 );
+                    for ( var i_angle = 0; i_angle < angles; i_angle++ ) {
+                        positions[ p++ ] = 0.0; // 1.0 * i_angle;
+                        positions[ p++ ] = 0.0; // 1.0 * i_segment;
+                        positions[ p++ ] = 0.0;
+    
+                        // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
+                        uvs[ q++ ] = (i_angle * 1.0) / ( angles - 1.0 );
+                        uvs[ q++ ] = (i_segment * 1.0) / ( segments - 1.0 );
+                    }
+                    // Finished the loop, so now create a LineLoop for it:
+                    retval[0].push(positions);
+                    retval[1].push(uvs);
+                }
+                return retval;
+            }
+            
+            constructor(radius, segments, angles) {
+                this.radius = radius;
+                this.segments = segments;
+                this.angles = angles;
+                
+                // Handle to the scene object:
+                this.scene = 0;
+                
+                // Variable handles for dat.gui to manipulate:
+                this.visibility = true;
+                this.capture = 1.0;
+                this.uTime = 0.0;
+                //this.animate = true;
+                //this.swapAnimDir = false;
+                this.color = [0, 0, 255, 1.0]; 	// Let's default to green in [R, G, B, A]
+                this.background = [0.0, 0.0, 0.0];
+                this.opacity = 1.0;
+    
+                // Create the shader uniforms:
+                this.cvfUniforms = {
+                    //cameraConstant: { value: getCameraConstant( camera ) },
+                    radius:  	{ value: this.radius },
+                    capture:   	{ value: this.capture },
+                    uTime:      { value: this.uTime },
+                    //animate:    { value: this.animate },
+                    //swapAnimDir:{ value: this.swapAnimDir },
+                    color:   	{ value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) },
+                    background: { value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) },
+                    opacity:    { value: this.opacity }
+                };
+    
+                this.loadNewGeometry(this.radius, this.segments, this.angles);
+            }
+
+            // Loads a new geometry based on the given set of parameters. The previous geometries are unloaded from
+            // the GPU's VRAM.
+            loadNewGeometry(radius, segments, angles) {
+                // Remove the geometries from the scene:
+                if(this.scene) {
+                    this.scene.remove(this.object3Ds);
+                    // Delete all the geometries:
+                    for(var i=0; i < this.object3Ds.children.length; i++) {
+                        this.object3Ds.children[i].geometry.dispose();
+                    }
+                    // Delete the materials:
+                    this.material.dispose();
+                }
+    
+                // Re-create the geometries:
+                var electronGeometry = FreeElectronPhotonAbsorption.createGeometry (segments, angles);
+    
+                // The geometry, based on BufferGeometry for efficiency:
+                this.positions = electronGeometry[0];
+                this.uvs = electronGeometry[1];
+
+                // console.log(this.positions.length);
+                
+                // Create and initialise the ShaderMaterial:
+                this.material = new THREE.ShaderMaterial( {
+                    uniforms:       this.cvfUniforms,
+                    vertexShader:   document.getElementById('electronVertexShader').textContent,
+                    fragmentShader: document.getElementById('fragmentShader').textContent,
+                    transparent:    true,
+                    depthTest:      false, // Stop the lines from disappearing!
+                    wireframe:      false,
+                    opacity: 0
+                } );
+                this.material.extensions.drawBuffers = true;
+
+                this.object3Ds = new THREE.Object3D();
+                for(var p=0, pl=this.positions.length; p<pl; ++p) {
+                    this.geometry = new THREE.BufferGeometry();
+                    // Add the vertices and uv arrays as attributes into the geometry:
+                    this.geometry.setAttribute( 'position', new THREE.BufferAttribute( this.positions[p], 3 ) );
+                    this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
+        
+                    // Create the Lines geometry and load the into the scene:
+                    var lines = new THREE.LineLoop( this.geometry, this.material );
+                    lines.matrixAutoUpdate = false;
+                    lines.updateMatrix();
+                    this.object3Ds.add(lines);
+                }
+    
+                this.setVisibility(this.visibility);
+    
+                // Add the new geometries:
+                if(this.scene) {
+                    this.scene.add(this.object3Ds);
+                }
+            }
+
+            // Insert the geometries into the scenegraph's sceneObject:
+            insertScene(sceneObject) {
+                sceneObject.add(this.object3Ds);
+                this.scene = sceneObject;
+                if(this.scene.background) {
+                    this.background = this.scene.background;
+                } 
+            }
+
+            rotateY(value) {
+                for(var i=0; i < this.object3Ds.children.length; i++) {
+                    this.object3Ds.children[i].geometry.rotateY(value);
+                }
+            }
+
+            // Set the visible geometry. No point ever displaying both, as they use the SAME vertices:
+            setVisibility(value) {
+                this.visibility = value;
+                this.object3Ds.visible = value;
+            }
+
+            // Set how opened or closed the electron is:
+            setCapture(value) {
+                this.cvfUniforms.capture.value = value;
+                this.capture = this.cvfUniforms.capture.value;
+            }
+
+            // Select whether to animate or not:
+            setAnimate(value) {
+                this.cvfUniforms.animate.value = (value) ? true : false;
+                this.animate = this.cvfUniforms.animate.value;
+            }
+
+            // Select whether to animate or not:
+            setSwapAnimDir(value) {
+                this.cvfUniforms.swapAnimDir.value = (value) ? true : false;
+                this.swapAnimDir = this.cvfUniforms.swapAnimDir.value;
+            }
+
+            // Select whether to animate or not:
+            setRotate(value) {
+                this.cvfUniforms.rotate.value = (value) ? true : false;
+            }
+
+            setSpeed(value) {
+                this.cvfUniforms.waveSpeed.value = value;
+            }
+
+            // Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
+            setColor(value) {
+                this.color = value;
+                this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+                console.log(value);
+            }
+
+            setOpacity(value) {
+                this.opacity = value;
+                this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+                this.cvfUniforms.opacity.value = this.opacity;
+            }
+
+            // Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
+            setBackground(value) {
+                this.background = value;
+                this.cvfUniforms.background.value = [this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0];
+            }
+
+            // Update the time for the shader to see:
+            addTime( delta_time ) {
+                this.cvfUniforms.uTime.value += delta_time;
+                // this.cvfUniforms.uTime.value += delta_time * this.cvfUniforms.waveSpeed.value;
+                //console.log(this.cvfUniforms.uTime.value);
+            }
+
+            // Update the time for the shader to see:
+            setScale( value ) {
+                this.scale = value;
+                this.cvfUniforms.scale.value = this.scale;
+            }
+
+            // Update the time for the shader to see:
+            setTime( tick_time ) {
+                this.cvfUniforms.uTime.value = tick_time;
+            }
+        }
+      
+        class Grid {
+            constructor() {
+                this.width = 200;
+                this.height = 200;
+                this.depth = 200;
+                this.separators = 3;
+                //this.generateBoundary();
+                this.generateFull();
+            }
+    
+            generateFull() {
+                var spacing = this.width / this.separators; // pixels
+                this.geometry = new THREE.BufferGeometry();
+
+                // Storage for all the locations for the BECVF:
+                var positions = new Float32Array( 6 * ((this.separators+1)**2) * 3 );
+                var p = 0;
+                var x = 0.0;
+                var y = 0.0;
+                var z = 0.0;
+
+                // Populate the grid positions:
+                for ( var i = 0; i <= this.separators; i++ ) {
+                    x = (i * spacing) - (this.separators * spacing * 0.5);
+                    for ( var j = 0; j <= this.separators; j++ ) {
+                        y = (j * spacing) - (this.separators * spacing * 0.5);
+
+                        positions[ p++ ] = x;
+                        positions[ p++ ] = y;
+                        positions[ p++ ] = -(this.separators * spacing * 0.5);
+
+                        positions[ p++ ] = x;
+                        positions[ p++ ] = y;
+                        positions[ p++ ] = (this.separators * spacing * 0.5);
+                    }
+                }
+
+                for ( var i = 0; i <= this.separators; i++ ) {
+                    x = (i * spacing) - (this.separators * spacing * 0.5);
+                    for ( var j = 0; j <= this.separators; j++ ) {
+                        y = (j * spacing) - (this.separators * spacing * 0.5);
+
+                        positions[ p++ ] = y;
+                        positions[ p++ ] = -(this.separators * spacing * 0.5);
+                        positions[ p++ ] = x;
+
+                        positions[ p++ ] = y;
+                        positions[ p++ ] = (this.separators * spacing * 0.5);
+                        positions[ p++ ] = x;
+                    }
+                }
+
+                for ( var i = 0; i <= this.separators; i++ ) {
+                    x = (i * spacing) - (this.separators * spacing * 0.5);
+                    for ( var j = 0; j <= this.separators; j++ ) {
+                        y = (j * spacing) - (this.separators * spacing * 0.5);
+
+                        positions[ p++ ] = -(this.separators * spacing * 0.5);
+                        positions[ p++ ] = x;
+                        positions[ p++ ] = y;
+
+                        positions[ p++ ] = (this.separators * spacing * 0.5);
+                        positions[ p++ ] = x;
+                        positions[ p++ ] = y;
+                    }
+                }
+
+                this.geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+        
+                this.gridContrast = 0.2;
+                this.background = [0, 0, 0];
+        
+                this.gridUniforms = { 
+                    gridContrast: { value: this.gridContrast },
+                    background: { value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) }
+                };
+    
+                // ShaderMaterial
+                this.material = new THREE.ShaderMaterial( {
+                                                        uniforms:       this.gridUniforms,
+                                                        linewidth:      2,
+                                                        vertexShader:   document.getElementById('gridVertexShader').textContent,
+                                                        fragmentShader: document.getElementById('fragmentShader').textContent,
+                                                        depthTest: false
+                                                        } );                                                        
+                this.material.extensions.drawBuffers = true;
+    
+                this.gridGeometry = new THREE.LineSegments( this.geometry, this.material );
+                this.gridGeometry.matrixAutoUpdate = false;
+                this.gridGeometry.updateMatrix();
+            }
+    
+            generateBoundary() {
+                // Create a two line-squares, followed by four lines after.
+                var positions = new Float32Array( 24*3 ); // 12 boundary lines require 2 vertices each, 3 floats per vertex
+                var x = 0.0;
+                var y = 0.0;
+                var p = 0;
+        
+                for ( var i = 0; i < 2; i++ ) {
+                    x = -this.width * 0.5 + i * this.width;
+                    for ( var j = 0; j < 2; j++ ) {
+                        y = -this.height * 0.5 + j * this.height;
+                
+                        positions[p++] = x;
+                        positions[p++] = y;
+                        positions[p++] = -this.depth * 0.5;
+        
+                        positions[p++] = x;
+                        positions[p++] = y;
+                        positions[p++] = this.depth * 0.5;
+                    }
+                }
+        
+                for ( var i = 0; i < 2; i++ ) {
+                    x = -this.depth * 0.5 + i * this.depth;
+                    for ( var j = 0; j < 2; j++ ) {
+                        y = -this.height * 0.5 + j * this.height;
+                
+                        positions[p++] = -this.width * 0.5;
+                        positions[p++] = y;
+                        positions[p++] = x;
+        
+                        positions[p++] = this.width * 0.5;
+                        positions[p++] = y;
+                        positions[p++] = x;
+                    }
+                }
+        
+                for ( var i = 0; i < 2; i++ ) {
+                    x = -this.width * 0.5 + i * this.width;
+                    for ( var j = 0; j < 2; j++ ) {
+                        y = -this.depth * 0.5 + j * this.depth;
+                
+                        positions[p++] = x;
+                        positions[p++] = -this.height * 0.5;
+                        positions[p++] = y;
+        
+                        positions[p++] = x;
+                        positions[p++] = this.height * 0.5;
+                        positions[p++] = y;
+                    }
+                }
+        
+                this.geometry = new THREE.BufferGeometry();
+                this.geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+                this.gridContrast = 0.2;
+                this.background = [0, 0, 0];
+        
+                this.gridUniforms = { 
+                    gridContrast: { value: this.gridContrast },
+                    background: 	{ value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) }
+                };
+        
+                // ShaderMaterial
+                this.material = new THREE.ShaderMaterial( {
+                                                        uniforms:       this.gridUniforms,
+                                                        linewidth:      2,
+                                                        vertexShader:   gridVertexShader,
+                                                        fragmentShader: cvfFragmentShader
+                                                        } );                                                        
+                this.material.extensions.drawBuffers = true;
+        
+                this.gridGeometry = new THREE.LineSegments( this.geometry, this.material );
+                this.gridGeometry.matrixAutoUpdate = false;
+                this.gridGeometry.updateMatrix();
+            }
+    
+            setBackground(background) {
+                this.gridUniforms.background.value = [background[0]/255.0, background[1]/255.0, background[2]/255.0, 1.0];
+            }
+    
+            // Set the brightness of the grid. Make it invisible if brightness is 0.05 or less.
+            setBrightness(brightness) {
+                this.gridContrast = brightness;
+                this.gridUniforms.gridContrast.value = brightness;
+                if(brightness >= 0.05) {
+                    this.gridGeometry.visible = true;
+                } else {
+                    this.gridGeometry.visible = false;
+                }
+            }
+    
+            // Insert the geometries into the scenegraph's sceneObject:
+            insertScene(sceneObject) {
+                sceneObject.add(this.gridGeometry);
+            }
+        }
+  
+        var container; 
+        var camera, scene, renderer, geometry, controls;
+        var clock = new THREE.Clock();
+        var tick = 0;
+        
+        var electron, grid;
+
+        init();
+        animate();
+               
+        function init() {
+
+            // A global structure used to store a couple of the adjustable parameters that don't easily
+            // belong somewhere else. Not pretty, but does the trick.
+            effectController = {
+                waveSpeed: 			0.50,
+                wavesPerRing: 		1.0,
+                color: 		        [0, 0, 0],
+                background: 		[0, 0, 0]
+            };
+
+            container = document.createElement( 'div' );
+            document.body.appendChild( container );
+
+            camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
+            camera.position.y = 120;
+            camera.position.z = 400;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(effectController.background[0]/255.0, effectController.background[1]/255.0, effectController.background[2]/255.0);
+
+            renderer = new THREE.WebGLRenderer({antialias:true});
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            container.appendChild( renderer.domElement );
+
+            controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+            window.addEventListener( 'resize', onWindowResize, false );
+            
+            // Create the Y00 visualisation geometry and insert it into the scene:
+            electron = new FreeElectronPhotonAbsorption(100.0, 144, 60);
+            electron.setVisibility(true);
+            electron.insertScene(scene);
+            
+				// Add an axis:
+				var axis = new THREE.AxisHelper(200);
+				scene.add(axis);
+				
+            grid = new Grid();
+            grid.insertScene(scene);
+            
+            // Add all the controls for the various visualisations
+            initGUI();
+        }
+    
+        function initGUI() {
+            // Create the parameter control panel (on the right)
+            var gui = new dat.GUI();
+
+            // Add a folder to hold all the common parameters:
+            var folder1 = gui.addFolder( 'Common parameters' );
+            folder1.add( electron, "capture", 0.0, 1.0, 0.002 ).onChange( function(value) { electron.setCapture(value); } );
+            folder1.addColor( electron, "color").onChange( function(value) { 
+                electron.setColor(value);
+            } );
+            folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
+            folder1.addColor( effectController, "background").onChange( function(value) { 
+                scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
+            } );
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+        }
+
+        function getCameraConstant( camera ) {
+            return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+        }
+            
+        function animate() {
+            // Update the elapsed time to later provide to the shaders:
+            var delta = clock.getDelta();
+            tick += delta;
+            if ( tick < 0 ) tick = 0;
+            
+            // Update the material uniforms with the time, to pass on the elapsed time:
+            electron.addTime(delta);
+            
+            // Tell WebGL to call the 'animate()' function for the next screen refresh:
+            requestAnimationFrame( animate );
+            
+            // Render the scene, and update the stats:
+            renderer.render( scene, camera );
+            //stats.update();
+        }		    
+    </script>
+</body>
+</html>
