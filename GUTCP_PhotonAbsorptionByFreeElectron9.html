@@ -22,7 +22,24 @@
     <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/7.5.1/math.min.js"></script>
 
-    <script type="x-shader/x-vertex" id="vertexShader">
+    <script type="x-shader/x-vertex" id="basicShader">
+        uniform float uTime; 		
+        uniform float sweep; 		
+        uniform bool  animate; 
+        uniform bool  swapAnimDir;
+        uniform vec4  color; 		
+        uniform vec4  background; 	
+        varying vec4  vColor; 		
+        void main()
+        {
+            vColor = vec4( color[0], color[1], color[2], 1.0 );; 
+            vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
+	        gl_PointSize = 2.0; 
+		    gl_Position = projectionMatrix * mvPosition; 
+        }
+    </script>
+    
+    <script type="x-shader/x-vertex" id="rotVertexShader">
         uniform float uTime; 		
         uniform float sweep; 		
         uniform bool  animate; 
@@ -33,15 +50,60 @@
         void main()
         {
             if(sweep > uv.y) {
-                vColor = vec4( color[0], color[1], color[2], 1.0 );; 
+                vColor = vec4( color[0], color[1], color[2], 1.0 ); 
             } else {
-                vColor = vec4( color[0], color[1], color[2], 0.0 );; 
+                vColor = vec4( color[0], color[1], color[2], 0.0 ); 
             }
             vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
 	        gl_PointSize = 2.0; 
 		    gl_Position = projectionMatrix * mvPosition; 
         }
     </script>
+    
+    <script type="x-shader/x-vertex" id="modulatedCvfVertexShader">
+        uniform float uTime; 		
+        uniform float sweep; 		
+        uniform bool  animate; 
+        uniform bool  swapAnimDir;
+        uniform vec4  color; 		
+        uniform vec4  background; 	
+        varying vec4  vColor; 		
+        void main()
+        {
+            float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0);
+            vColor = vec4( color[0], color[1], color[2], bright ); 
+            vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
+	        gl_PointSize = 2.0; 
+		    gl_Position = projectionMatrix * mvPosition; 
+        }
+    </script>
+    
+    <script type="x-shader/x-vertex" id="cvfVertexShader">
+        uniform float uTime; 		
+        uniform float scale; 		
+        uniform float zOffset; 		
+        uniform bool  animate; 		
+        uniform bool  swapAnimDir; 
+        uniform vec4  color; 		
+        uniform vec4  background; 	
+        varying vec4  vColor; 		
+    
+        void main() { 				
+            if(animate) { 			
+                float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0);
+                vColor = vec4( (1.0-bright)*color[0], (1.0-bright)*color[1], (1.0-bright)*color[2], color[3] );
+                //vColor = vec4( (1.0-bright)*color[0]+bright*background[0], (1.0-bright)*color[1]+bright*background[1], (1.0-bright)*color[2]+bright*background[2], color[3] );	
+            } else { 														 
+                vColor = color; 											 
+            } 																 
+            vec3 newPosition = position.xyz*scale; 							 
+            newPosition.z += zOffset; 										 
+            vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 
+            gl_PointSize = 2.0; 											 
+            gl_Position = projectionMatrix * mvPosition; 					 
+        } 
+    </script>
+
     
     <script type="x-shader/x-vertex" id="electronVertexShader">
         uniform float uTime; 
@@ -272,7 +334,7 @@
                 this.uTime = 0.0;
                 //this.animate = true;
                 //this.swapAnimDir = false;
-                this.color = [0, 0, 255, 1.0]; 	// Let's default to green in [R, G, B, A]
+                this.color = [0, 255, 0, 1.0]; 	// Let's default to green in [R, G, B, A]
                 this.background = [0.0, 0.0, 0.0];
                 this.opacity = 1.0;
     
@@ -357,7 +419,7 @@
                 // Create and initialise the ShaderMaterial:
                 this.material2 = new THREE.ShaderMaterial( {
                     uniforms:       this.cvfUniforms,
-                    vertexShader:   document.getElementById('vertexShader').textContent,
+                    vertexShader:   document.getElementById('rotVertexShader').textContent,
                     fragmentShader: document.getElementById('fragmentShader').textContent,
                     transparent:    true,
                     depthTest:      false, // Stop the lines from disappearing!
@@ -446,7 +508,7 @@
             setColor(value) {
                 this.color = value;
                 this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
-                console.log(value);
+                //console.log(value);
             }
 
             setOpacity(value) {
@@ -477,6 +539,766 @@
             // Update the time for the shader to see:
             setTime( tick_time ) {
                 this.cvfUniforms.uTime.value = tick_time;
+            }
+        }
+      
+        class PhotonAbsorption {
+            
+            // Return an individual CVF vertex:
+            // radius  = CVF radius (typically 100.0)
+            // i_n     = iterator for N
+            // N       = number of N rotations
+            // i_phi   = iterator for PHI
+            // PHI     = number of point in the current loop
+            static getRhcpPhotonVertex(field, radius, i_n, N, i_phi, PHI) {
+            
+                var phi = 2.0 * Math.PI * i_phi / PHI;
+                var becvf;
+                
+                if(field == 0) {
+                    becvf = [(0.0),
+                             (radius * Math.cos(phi)),
+                             (radius * Math.sin(phi))];
+                } else {
+                    becvf = [(radius * Math.cos(phi)),
+                             (0.0),
+                             (radius * Math.sin(phi))];
+                }
+                
+                var rotation_axis = [0.707, 0.707, 0.0];
+                var m_matrix = [];
+                var m2piONm = 2.0 * Math.PI * i_n / N;
+
+                // The m_matrix is the general rotation matrix around the rotation_axis:
+                m_matrix[0+0] = (Math.cos(m2piONm) + ((rotation_axis[0]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[0+1] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[0+2] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[3+0] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[3+1] = (Math.cos(m2piONm) + ((rotation_axis[1]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[3+2] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+0] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[6+1] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+2] = (Math.cos(m2piONm) + ((rotation_axis[2]**2.0) * (1.0 - Math.cos(m2piONm))));
+                
+                var vertex = [];
+                vertex[0] = m_matrix[0+0] * becvf[0] + m_matrix[0+1] * becvf[1] + m_matrix[0+2] * becvf[2];
+                vertex[1] = m_matrix[3+0] * becvf[0] + m_matrix[3+1] * becvf[1] + m_matrix[3+2] * becvf[2];
+                vertex[2] = m_matrix[6+0] * becvf[0] + m_matrix[6+1] * becvf[1] + m_matrix[6+2] * becvf[2];
+                return vertex;
+            }
+    
+            // Return an individual CVF vertex:
+            // radius  = CVF radius (typically 100.0)
+            // i_n     = iterator for N
+            // N       = number of N rotations
+            // i_phi   = iterator for PHI
+            // PHI     = number of point in the current loop
+            static getLhcpPhotonVertex(field, radius, i_n, N, i_phi, PHI) {
+            
+                var phi = 2.0 * Math.PI * i_phi / PHI;
+                var becvf;
+
+                if(field == 0) {
+                    becvf = [(0.0),
+                             (radius * Math.cos(phi)),
+                             (radius * Math.sin(phi))];
+                } else {
+                    becvf = [(radius * Math.cos(phi)),
+                             (0.0),
+                             (radius * Math.sin(phi))];
+                }
+                
+                var rotation_axis = [0.707, -0.707, 0.0];
+                var m_matrix = [];
+                var m2piONm = 2.0 * Math.PI * i_n / N;
+
+                // The m_matrix is the general rotation matrix around the rotation_axis:
+                m_matrix[0+0] = (Math.cos(m2piONm) + ((rotation_axis[0]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[0+1] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[0+2] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[3+0] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[3+1] = (Math.cos(m2piONm) + ((rotation_axis[1]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[3+2] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+0] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[6+1] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+2] = (Math.cos(m2piONm) + ((rotation_axis[2]**2.0) * (1.0 - Math.cos(m2piONm))));
+                
+                var vertex = [];
+                vertex[0] = m_matrix[0+0] * becvf[0] + m_matrix[0+1] * becvf[1] + m_matrix[0+2] * becvf[2];
+                vertex[1] = m_matrix[3+0] * becvf[0] + m_matrix[3+1] * becvf[1] + m_matrix[3+2] * becvf[2];
+                vertex[2] = m_matrix[6+0] * becvf[0] + m_matrix[6+1] * becvf[1] + m_matrix[6+2] * becvf[2];
+                return vertex;
+             }
+    
+            static createRedGeometry (radius, N, PHI) {
+                var positions;
+                var uvs;
+        
+                var retval = [];
+                retval[0] = [];
+                retval[1] = [];
+                var vtx = [];
+                const NN = N / 4;
+                var p, q;
+                for (var i_n = 0; i_n < NN; i_n++) {
+                    p=0, q=0;
+                    positions = new Float32Array( PHI * 3 );
+                    uvs = new Float32Array( PHI * 2 );
+                    for (var i_phi = 0; i_phi < PHI; i_phi++) {
+                        vtx = PhotonAbsorption.getRhcpPhotonVertex(0, radius, i_n, N, i_phi, PHI);
+                        positions[p++] = vtx[0];
+                        positions[p++] = vtx[1];
+                        positions[p++] = vtx[2];
+                
+                        uvs[ q++ ] = i_phi / ( PHI - 1 );
+                        uvs[ q++ ] = i_n / ( NN - 1 );
+                    }
+                    retval[0].push(positions);
+                    retval[1].push(uvs);
+                    
+                    p=0, q=0;
+                    positions = new Float32Array( PHI * 3 );
+                    uvs = new Float32Array( PHI * 2 );
+                    for (var i_phi = 0; i_phi < PHI; i_phi++) {
+                        vtx = PhotonAbsorption.getLhcpPhotonVertex(0, radius, i_n, N, i_phi, PHI);
+                        positions[p++] = vtx[0];
+                        positions[p++] = vtx[1];
+                        positions[p++] = vtx[2];
+                
+                        uvs[ q++ ] = i_phi / ( PHI - 1 );
+                        uvs[ q++ ] = i_n / ( NN - 1 );
+                    }
+                    retval[0].push(positions);
+                    retval[1].push(uvs);
+                    
+                }
+                return retval;
+            }
+            
+            static createBlueGeometry (radius, N, PHI) {
+                var positions;
+                var uvs;
+        
+                var retval = [];
+                retval[0] = [];
+                retval[1] = [];
+                var vtx = [];
+                const NN = N / 4;
+                var p,q;
+                for (var i_n = 0; i_n < NN; i_n++) {
+                    p=0, q=0;
+                    positions = new Float32Array( PHI * 3 );
+                    uvs = new Float32Array( PHI * 2 );
+                    for (var i_phi = 0; i_phi < PHI; i_phi++) {
+                        vtx = PhotonAbsorption.getRhcpPhotonVertex(1, radius, i_n, N, i_phi, PHI);
+                        positions[p++] = vtx[0];
+                        positions[p++] = vtx[1];
+                        positions[p++] = vtx[2];
+                
+                        uvs[ q++ ] = i_phi / ( PHI - 1 );
+                        uvs[ q++ ] = i_n / ( NN - 1 );
+                    }
+                    retval[0].push(positions);
+                    retval[1].push(uvs);
+                    
+                    p=0, q=0;
+                    positions = new Float32Array( PHI * 3 );
+                    uvs = new Float32Array( PHI * 2 );
+                    for (var i_phi = 0; i_phi < PHI; i_phi++) {
+                        vtx = PhotonAbsorption.getLhcpPhotonVertex(1, radius, i_n, N, i_phi, PHI);
+                        positions[p++] = vtx[0];
+                        positions[p++] = vtx[1];
+                        positions[p++] = vtx[2];
+                
+                        uvs[ q++ ] = i_phi / ( PHI - 1 );
+                        uvs[ q++ ] = i_n / ( NN - 1 );
+                    }
+                    retval[0].push(positions);
+                    retval[1].push(uvs);
+                    
+                }
+                return retval;
+            }
+            
+            constructor(radius, segments, angles) {
+                this.radius = radius;
+                this.segments = segments;
+                this.angles = angles;
+                
+                // Handle to the scene object:
+                this.scene = 0;
+                
+                // Variable handles for dat.gui to manipulate:
+                this.visibility = true;
+                this.capture = 0.0;
+                this.sweep = 0.0;
+                this.uTime = 0.0;
+                this.scale = 1.0;
+                //this.animate = true;
+                //this.swapAnimDir = false;
+                this.color_red = [255, 0, 0, 1.0]; 	// Let's default to green in [R, G, B, A]
+                this.color_blue = [0, 0, 255, 1.0]; 	// Let's default to green in [R, G, B, A]
+                this.background = [0.0, 0.0, 0.0];
+                this.opacity = 1.0;
+    
+                // Create the shader uniforms:
+                this.cvfRedUniforms = {
+                    //cameraConstant: { value: getCameraConstant( camera ) },
+                    radius:  	{ value: this.radius },
+                    capture:   	{ value: this.capture },
+                    sweep:   	{ value: this.sweep },
+                    uTime:      { value: this.uTime },
+                    scale:      { value: this.scale },
+                    color:   	{ value: new THREE.Vector4(this.color_red[0]/255.0, this.color_red[1]/255.0, this.color_red[2]/255.0, this.color_red[3]) },
+                    background: { value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) },
+                    opacity:    { value: this.opacity }
+                };
+    
+                // Create the shader uniforms:
+                this.cvfBlueUniforms = {
+                    //cameraConstant: { value: getCameraConstant( camera ) },
+                    radius:  	{ value: this.radius },
+                    capture:   	{ value: this.capture },
+                    sweep:   	{ value: this.sweep },
+                    uTime:      { value: this.uTime },
+                    scale:      { value: this.scale },
+                    color:   	{ value: new THREE.Vector4(this.color_blue[0]/255.0, this.color_blue[1]/255.0, this.color_blue[2]/255.0, this.color_blue[3]) },
+                    background: { value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) },
+                    opacity:    { value: this.opacity }
+                };
+    
+                this.loadNewGeometry(this.radius, this.segments, this.angles);
+            }
+
+            // Loads a new geometry based on the given set of parameters. The previous geometries are unloaded from
+            // the GPU's VRAM.
+            loadNewGeometry(radius, segments, angles) {
+                // Remove the geometries from the scene:
+                if(this.scene) {
+                    this.scene.remove(this.object3Ds);
+                    // Delete all the geometries:
+                    for(var i=0; i < this.object3Ds.children.length; i++) {
+                        this.object3Ds.children[i].geometry.dispose();
+                    }
+                    // Delete the materials:
+                    this.redMaterial.dispose();
+                    this.blueMaterial.dispose();
+                }
+    
+                this.object3Ds = new THREE.Object3D();
+                
+                // Create and initialise the ShaderMaterial:
+                this.redMaterial = new THREE.ShaderMaterial( {
+                    uniforms:       this.cvfRedUniforms,
+                    vertexShader:   document.getElementById('cvfVertexShader').textContent,
+                    fragmentShader: document.getElementById('fragmentShader').textContent,
+                    transparent:    true,
+                    depthTest:      false, // Stop the lines from disappearing!
+                    wireframe:      false,
+                    opacity:        0
+                } );
+                this.redMaterial.extensions.drawBuffers = true;
+
+                // Create and initialise the ShaderMaterial:
+                this.blueMaterial = new THREE.ShaderMaterial( {
+                    uniforms:       this.cvfBlueUniforms,
+                    vertexShader:   document.getElementById('cvfVertexShader').textContent,
+                    fragmentShader: document.getElementById('fragmentShader').textContent,
+                    transparent:    true,
+                    depthTest:      false, // Stop the lines from disappearing!
+                    wireframe:      false,
+                    opacity:        0
+                } );
+                this.blueMaterial.extensions.drawBuffers = true;
+
+                // Re-create the geometries:
+                var redPhotonGeometry = PhotonAbsorption.createRedGeometry (radius, segments, angles);
+                this.positions = redPhotonGeometry[0];
+                this.uvs = redPhotonGeometry[1];
+
+                // Initial geometry for the free electron that sweeps to form a BECVF:
+                for(var p=0, pl=this.positions.length; p<pl; ++p) {
+                    this.geometry = new THREE.BufferGeometry();
+                    // Add the vertices and uv arrays as attributes into the geometry:
+                    this.geometry.setAttribute( 'position', new THREE.BufferAttribute( this.positions[p], 3 ) );
+                    this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
+        
+                    // Create the Lines geometry and load the into the scene:
+                    var lines = new THREE.LineLoop( this.geometry, this.redMaterial );
+                    lines.matrixAutoUpdate = false;
+                    lines.updateMatrix();
+                    this.object3Ds.add(lines);
+                }
+                
+                var bluePhotonGeometry = PhotonAbsorption.createBlueGeometry (radius, segments, angles);
+                this.positions = bluePhotonGeometry[0];
+                this.uvs = bluePhotonGeometry[1];
+
+                // Initial geometry for the free electron that sweeps to form a BECVF:
+                for(var p=0, pl=this.positions.length; p<pl; ++p) {
+                    this.geometry = new THREE.BufferGeometry();
+                    // Add the vertices and uv arrays as attributes into the geometry:
+                    this.geometry.setAttribute( 'position', new THREE.BufferAttribute( this.positions[p], 3 ) );
+                    this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
+        
+                    // Create the Lines geometry and load the into the scene:
+                    var lines = new THREE.LineLoop( this.geometry, this.blueMaterial );
+                    lines.matrixAutoUpdate = false;
+                    lines.updateMatrix();
+                    this.object3Ds.add(lines);
+                }
+                
+                this.setVisibility(this.visibility);
+    
+                // Add the new geometries:
+                if(this.scene) {
+                    this.scene.add(this.object3Ds);
+                }
+            }
+
+            // Insert the geometries into the scenegraph's sceneObject:
+            insertScene(sceneObject) {
+                sceneObject.add(this.object3Ds);
+                this.scene = sceneObject;
+                if(this.scene.background) {
+                    this.background = this.scene.background;
+                } 
+            }
+
+            rotateY(value) {
+                for(var i=0; i < this.object3Ds.children.length; i++) {
+                    this.object3Ds.children[i].geometry.rotateY(value);
+                }
+            }
+
+            // Set the visible geometry. No point ever displaying both, as they use the SAME vertices:
+            setVisibility(value) {
+                this.visibility = value;
+                this.object3Ds.visible = value;
+            }
+
+            // Set how opened or closed the electron is:
+            setCapture(value) {
+                this.cvfUniforms.capture.value = value;
+                this.capture = this.cvfUniforms.capture.value;
+            }
+
+            // Set how opened or closed the electron is:
+            setSweep(value) {
+                this.cvfUniforms.sweep.value = value;
+                this.sweep = this.cvfUniforms.sweep.value;
+            }
+
+            // Select whether to animate or not:
+            setAnimate(value) {
+                this.cvfUniforms.animate.value = (value) ? true : false;
+                this.animate = this.cvfUniforms.animate.value;
+            }
+
+            // Select whether to animate or not:
+            setSwapAnimDir(value) {
+                this.cvfUniforms.swapAnimDir.value = (value) ? true : false;
+                this.swapAnimDir = this.cvfUniforms.swapAnimDir.value;
+            }
+
+            // Select whether to animate or not:
+            setRotate(value) {
+                this.cvfUniforms.rotate.value = (value) ? true : false;
+            }
+
+            setSpeed(value) {
+                this.cvfUniforms.waveSpeed.value = value;
+            }
+
+            // Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
+            setColor(value) {
+                this.color = value;
+                this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+                //console.log(value);
+            }
+
+            setOpacity(value) {
+                this.opacity = value;
+                this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+                this.cvfUniforms.opacity.value = this.opacity;
+            }
+
+            // Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
+            setBackground(value) {
+                this.background = value;
+                this.cvfUniforms.background.value = [this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0];
+            }
+
+            // Update the time for the shader to see:
+            addTime( delta_time ) {
+                this.cvfUniforms.uTime.value += delta_time;
+                // this.cvfUniforms.uTime.value += delta_time * this.cvfUniforms.waveSpeed.value;
+                //console.log(this.cvfUniforms.uTime.value);
+            }
+
+            // Update the time for the shader to see:
+            setScale( value ) {
+                this.scale = value;
+                this.cvfBlueUniforms.scale.value = this.scale;
+                this.cvfRedUniforms.scale.value = this.scale;
+            }
+
+            // Update the time for the shader to see:
+            setTime( tick_time ) {
+                this.cvfUniforms.uTime.value = tick_time;
+            }
+            
+            translateX(dist) {
+                this.object3Ds.translateX(dist);
+            }
+            
+            translateY(dist) {
+                this.object3Ds.translateY(dist);
+            }
+            
+            translateZ(dist) {
+                this.object3Ds.translateZ(dist);
+            }
+        }
+        
+        class PhotonModulatedOrbitsphere {
+            
+            // Return an individual CVF vertex:
+            // radius  = CVF radius (typically 100.0)
+            // i_n     = iterator for N
+            // N       = number of N rotations
+            // i_phi   = iterator for PHI
+            // PHI     = number of point in the current loop
+            static getOrbitsphereVertex(field, radius, i_m, M, i_n, N, i_phi, PHI) {
+            
+                var phi = 2.0 * Math.PI * i_phi / PHI;
+                var becvf;
+                
+                if(field == 0) {
+                    becvf = [(0.0),
+                             (radius * Math.cos(phi)),
+                             (radius * Math.sin(phi))];
+                } else {
+                    becvf = [(radius * Math.cos(phi)),
+                             (0.0),
+                             (radius * Math.sin(phi))];
+                }
+                
+                var rotation_axis = [0.707, 0.707, 0.0];
+                var m_matrix = [];
+                var m2piONm = 2.0 * Math.PI * i_n / N;
+
+                // The m_matrix is the general rotation matrix around the rotation_axis:
+                m_matrix[0+0] = (Math.cos(m2piONm) + ((rotation_axis[0]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[0+1] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[0+2] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[3+0] = ((rotation_axis[0]*rotation_axis[1]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[2] * Math.sin(m2piONm)));
+                m_matrix[3+1] = (Math.cos(m2piONm) + ((rotation_axis[1]**2.0) * (1.0 - Math.cos(m2piONm))));
+                m_matrix[3+2] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+0] = ((rotation_axis[0]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) + (rotation_axis[1] * Math.sin(m2piONm)));
+                m_matrix[6+1] = ((rotation_axis[1]*rotation_axis[2]*(1.0 - Math.cos(m2piONm))) - (rotation_axis[0] * Math.sin(m2piONm)));
+                m_matrix[6+2] = (Math.cos(m2piONm) + ((rotation_axis[2]**2.0) * (1.0 - Math.cos(m2piONm))));
+                
+                var vertex = [];
+                vertex[0] = m_matrix[0+0] * becvf[0] + m_matrix[0+1] * becvf[1] + m_matrix[0+2] * becvf[2];
+                vertex[1] = m_matrix[3+0] * becvf[0] + m_matrix[3+1] * becvf[1] + m_matrix[3+2] * becvf[2];
+                vertex[2] = m_matrix[6+0] * becvf[0] + m_matrix[6+1] * becvf[1] + m_matrix[6+2] * becvf[2];
+                return vertex;
+            }
+    
+            static getY00Vertex(mode, radius, i_n, N, i_m, M, i_phi, PHI) {
+
+                var m2piONm = 2.0 * Math.PI * i_m / M;
+                var m_matrix = [];
+
+                // The m_matrix is identical for both Y00 geometry types:
+                m_matrix[0+0] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
+                m_matrix[0+1] = (0.25 * (-1.0 + Math.cos(m2piONm) + 2.828 * Math.sin(m2piONm)));
+                m_matrix[0+2] = (0.25 * (-1.414 + 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
+                m_matrix[3+0] = (0.25 * (-1.0 + Math.cos(m2piONm) - 2.828 * Math.sin(m2piONm)));
+                m_matrix[3+1] = (0.25 * (1.0 + 3.0 * Math.cos(m2piONm)));
+                m_matrix[3+2] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) - 2.0 * Math.sin(m2piONm)));
+                m_matrix[6+0] = (0.5 * (0.707 * (-1.0 + Math.cos(m2piONm)) + Math.sin(m2piONm)));
+                m_matrix[6+1] = (0.25 * (1.414 - 1.414 * Math.cos(m2piONm) + 2.0 * Math.sin(m2piONm)));
+                m_matrix[6+2] = (Math.cos(0.5 * m2piONm) * Math.cos(0.5 * m2piONm));
+        
+                var n2piONn = 2.0 * Math.PI * i_n / N;
+                var n_matrix = [];
+                // n_matrix is different, dependent on Y00 geometry type:
+                if(mode == 1) {
+                        n_matrix[0+0] = (0.5 + 0.5 * Math.cos(n2piONn));
+                        n_matrix[0+1] = (-0.5 + 0.5 * Math.cos(n2piONn));
+                        n_matrix[0+2] = (-Math.sin(n2piONn) * 0.707);
+                        n_matrix[3+0] = (-0.5 + 0.5 * Math.cos(n2piONn));
+                        n_matrix[3+1] = (0.5 + 0.5 * Math.cos(n2piONn));
+                        n_matrix[3+2] = (-Math.sin(n2piONn) * 0.707);
+                        n_matrix[6+0] = (Math.sin(n2piONn) * 0.707);
+                        n_matrix[6+1] = (Math.sin(n2piONn) * 0.707);
+                        n_matrix[6+2] = (Math.cos(n2piONn));
+                } else {
+                        n_matrix[0+0] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+                        n_matrix[0+1] = (0.707 * Math.cos(n2piONn) + 0.707 * Math.sin(n2piONn));
+                        n_matrix[0+2] = (0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+                        n_matrix[3+0] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+                        n_matrix[3+1] = (0.707 * Math.cos(n2piONn) - 0.707 * Math.sin(n2piONn));
+                        n_matrix[3+2] = (-0.5 * Math.cos(n2piONn) - 0.5 * Math.sin(n2piONn));
+                        n_matrix[6+0] = (-0.707);
+                        n_matrix[6+1] = (0.0);
+                        n_matrix[6+2] = (0.707);
+                }
+
+                var phi = 2.0 * Math.PI * i_phi / PHI;
+                var becvf ;
+                if(mode == 1) {
+                    becvf = [(0.0),
+                             (radius * Math.cos(phi)),
+                             (-radius * Math.sin(phi))];
+                } else {
+                    becvf = [(radius * Math.cos(phi)),
+                             (radius * Math.sin(phi)),
+                             (0.0)];
+                }
+                var tx = n_matrix[0+0] * becvf[0] + n_matrix[0+1] * becvf[1] + n_matrix[0+2] * becvf[2];
+                var ty = n_matrix[3+0] * becvf[0] + n_matrix[3+1] * becvf[1] + n_matrix[3+2] * becvf[2];
+                var tz = n_matrix[6+0] * becvf[0] + n_matrix[6+1] * becvf[1] + n_matrix[6+2] * becvf[2];
+
+                var vertex = [];
+                vertex[0] = m_matrix[0+0] * tx + m_matrix[0+1] * ty + m_matrix[0+2] * tz;
+                vertex[1] = m_matrix[3+0] * tx + m_matrix[3+1] * ty + m_matrix[3+2] * tz;
+                vertex[2] = m_matrix[6+0] * tx + m_matrix[6+1] * ty + m_matrix[6+2] * tz;
+                return vertex;
+            }
+    
+            static createGeometry (radius, N, PHI) {
+                var positions;
+                var uvs;
+        
+                var retval = [];
+                retval[0] = [];
+                retval[1] = [];
+                var vtx = [];
+                var p, q;
+                for (var i_n = 0; i_n < N; i_n++) {
+                    for (var i_m = 0; i_m < N; i_m++) {
+                        p=0, q=0;
+                        positions = new Float32Array( PHI * 3 );
+                        uvs = new Float32Array( PHI * 2 );
+                        for (var i_phi = 0; i_phi < PHI; i_phi++) {
+                            vtx = PhotonModulatedOrbitsphere.getY00Vertex(0, radius, i_m, N, i_n, N, i_phi, PHI);
+                            positions[p++] = vtx[0];
+                            positions[p++] = vtx[1];
+                            positions[p++] = vtx[2];
+                
+                            uvs[ q++ ] = i_phi / ( PHI - 1 );
+                            uvs[ q++ ] = i_n / ( N - 1 );
+                        }
+                        retval[0].push(positions);
+                        retval[1].push(uvs);
+                    }
+                }
+                return retval;
+            }
+            
+            constructor(radius, segments, angles) {
+                this.radius = radius;
+                this.segments = segments;
+                this.angles = angles;
+                
+                // Handle to the scene object:
+                this.scene = 0;
+                
+                // Variable handles for dat.gui to manipulate:
+                this.visibility = true;
+                this.capture = 0.0;
+                this.sweep = 0.0;
+                this.uTime = 0.0;
+                this.animate = true;
+                this.swapAnimDir = false;
+                this.scale = 1.0;
+                this.color = [255, 255, 0, 1.0]; 	// Let's default to green in [R, G, B, A]
+                this.background = [0.0, 0.0, 0.0];
+                this.opacity = 1.0;
+    
+                // Create the shader uniforms:
+                this.cvfUniforms = {
+                    //cameraConstant: { value: getCameraConstant( camera ) },
+                    radius:  	{ value: this.radius },
+                    capture:   	{ value: this.capture },
+                    sweep:   	{ value: this.sweep },
+                    uTime:      { value: this.uTime },
+                    animate:   	{ value: this.animate },
+                    swapAnimDir:{ value: this.swapAnimDir },
+                    scale:      { value: this.scale },
+                    color:   	{ value: new THREE.Vector4(this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.color[3]) },
+                    background: { value: new THREE.Vector4(this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0) },
+                    opacity:    { value: this.opacity }
+                };
+    
+                this.loadNewGeometry(this.radius, this.segments, this.angles);
+            }
+
+            // Loads a new geometry based on the given set of parameters. The previous geometries are unloaded from
+            // the GPU's VRAM.
+            loadNewGeometry(radius, segments, angles) {
+                // Remove the geometries from the scene:
+                if(this.scene) {
+                    this.scene.remove(this.object3Ds);
+                    // Delete all the geometries:
+                    for(var i=0; i < this.object3Ds.children.length; i++) {
+                        this.object3Ds.children[i].geometry.dispose();
+                    }
+                    // Delete the materials:
+                    this.material.dispose();
+                }
+    
+                this.object3Ds = new THREE.Object3D();
+                
+                // Create and initialise the ShaderMaterial:
+                this.material = new THREE.ShaderMaterial( {
+                    uniforms:       this.cvfUniforms,
+                    vertexShader:   document.getElementById('modulatedCvfVertexShader').textContent,
+                    //vertexShader:   document.getElementById('basicShader').textContent,
+                    fragmentShader: document.getElementById('fragmentShader').textContent,
+                    transparent:    true,
+                    depthTest:      false, // Stop the lines from disappearing!
+                    wireframe:      false,
+                    opacity:        0
+                } );
+                this.material.extensions.drawBuffers = true;
+
+                // Re-create the geometries:
+                var redPhotonGeometry = PhotonModulatedOrbitsphere.createGeometry (radius, segments, angles);
+                this.positions = redPhotonGeometry[0];
+                this.uvs = redPhotonGeometry[1];
+
+                // Initial geometry for the free electron that sweeps to form a BECVF:
+                for(var p=0, pl=this.positions.length; p<pl; ++p) {
+                    this.geometry = new THREE.BufferGeometry();
+                    // Add the vertices and uv arrays as attributes into the geometry:
+                    this.geometry.setAttribute( 'position', new THREE.BufferAttribute( this.positions[p], 3 ) );
+                    this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
+        
+                    // Create the Lines geometry and load the into the scene:
+                    var lines = new THREE.LineLoop( this.geometry, this.material );
+                    lines.matrixAutoUpdate = false;
+                    lines.updateMatrix();
+                    this.object3Ds.add(lines);
+                }
+                
+                this.setVisibility(this.visibility);
+    
+                // Add the new geometries:
+                if(this.scene) {
+                    this.scene.add(this.object3Ds);
+                }
+            }
+
+            // Insert the geometries into the scenegraph's sceneObject:
+            insertScene(sceneObject) {
+                sceneObject.add(this.object3Ds);
+                this.scene = sceneObject;
+                if(this.scene.background) {
+                    this.background = this.scene.background;
+                } 
+            }
+
+            rotateY(value) {
+                for(var i=0; i < this.object3Ds.children.length; i++) {
+                    this.object3Ds.children[i].geometry.rotateY(value);
+                }
+            }
+
+            // Set the visible geometry. No point ever displaying both, as they use the SAME vertices:
+            setVisibility(value) {
+                this.visibility = value;
+                this.object3Ds.visible = value;
+            }
+
+            // Set how opened or closed the electron is:
+            setCapture(value) {
+                this.cvfUniforms.capture.value = value;
+                this.capture = this.cvfUniforms.capture.value;
+            }
+
+            // Set how opened or closed the electron is:
+            setSweep(value) {
+                this.cvfUniforms.sweep.value = value;
+                this.sweep = this.cvfUniforms.sweep.value;
+            }
+
+            // Select whether to animate or not:
+            setAnimate(value) {
+                this.cvfUniforms.animate.value = (value) ? true : false;
+                this.animate = this.cvfUniforms.animate.value;
+            }
+
+            // Select whether to animate or not:
+            setSwapAnimDir(value) {
+                this.cvfUniforms.swapAnimDir.value = (value) ? true : false;
+                this.swapAnimDir = this.cvfUniforms.swapAnimDir.value;
+            }
+
+            // Select whether to animate or not:
+            setRotate(value) {
+                this.cvfUniforms.rotate.value = (value) ? true : false;
+            }
+
+            setSpeed(value) {
+                this.cvfUniforms.waveSpeed.value = value;
+            }
+
+            // Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
+            setColor(value) {
+                this.color = value;
+                this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+                //console.log(value);
+            }
+
+            setOpacity(value) {
+                this.opacity = value;
+                this.cvfUniforms.color.value = [this.color[0]/255.0, this.color[1]/255.0, this.color[2]/255.0, this.opacity];
+                this.cvfUniforms.opacity.value = this.opacity;
+            }
+
+            // Little hack for dat.gui. Update the color by passing 3-element array in form [255, 128, 0]:
+            setBackground(value) {
+                this.background = value;
+                this.cvfUniforms.background.value = [this.background[0]/255.0, this.background[1]/255.0, this.background[2]/255.0, 1.0];
+            }
+
+            // Update the time for the shader to see:
+            addTime( delta_time ) {
+                this.cvfUniforms.uTime.value += delta_time;
+                // this.cvfUniforms.uTime.value += delta_time * this.cvfUniforms.waveSpeed.value;
+                //console.log(this.cvfUniforms.uTime.value);
+            }
+
+            // Update the time for the shader to see:
+            setScale( value ) {
+                this.scale = value;
+                this.cvfUniforms.scale.value = this.scale;
+            }
+
+            // Update the time for the shader to see:
+            setTime( tick_time ) {
+                this.cvfUniforms.uTime.value = tick_time;
+            }
+            /*
+            setPositionZ(value) {
+                this.positionZ
+            }
+            */
+            
+            translateX(dist) {
+                this.object3Ds.translateX(dist);
+            }
+            
+            translateY(dist) {
+                this.object3Ds.translateY(dist);
+            }
+            
+            translateZ(dist) {
+                this.object3Ds.translateZ(dist);
             }
         }
       
@@ -674,7 +1496,7 @@
         var clock = new THREE.Clock();
         var tick = 0;
         
-        var electron, grid;
+        var electron, photon, osphere, grid;
 
         init();
         animate();
@@ -714,9 +1536,18 @@
             electron.setVisibility(true);
             electron.insertScene(scene);
             
-				// Add an axis:
-				var axis = new THREE.AxesHelper(200);
-				scene.add(axis);
+            photon = new PhotonAbsorption(100.0, 64, 60);
+            photon.setVisibility(true);
+            photon.insertScene(scene);
+            
+            osphere = new PhotonModulatedOrbitsphere(105.0, 24, 60);
+            osphere.setVisibility(true);
+            osphere.setAnimate(true);
+            osphere.insertScene(scene);
+            
+            // Add an axis:
+            var axis = new THREE.AxesHelper(200);
+            scene.add(axis);
 				
             grid = new Grid();
             grid.insertScene(scene);
@@ -730,13 +1561,27 @@
             var gui = new dat.GUI();
 
             // Add a folder to hold all the common parameters:
-            var folder1 = gui.addFolder( 'Common parameters' );
+            var folder1 = gui.addFolder( 'Electron binding' );
+            folder1.add( electron, "visibility" ).onChange( function(value) { electron.setVisibility(value); } );
             folder1.add( electron, "capture", 0.0, 1.0, 0.002 ).onChange( function(value) { electron.setCapture(value); } );
             folder1.add( electron, "sweep", 0.0, 1.0, 0.002 ).onChange( function(value) { electron.setSweep(value); } );
             folder1.addColor( electron, "color").onChange( function(value) { 
                 electron.setColor(value);
             } );
+
+            var folder2 = gui.addFolder( 'Photon capture' );
+            folder2.add( photon, "visibility" ).onChange( function(value) { photon.setVisibility(value); } );
+            folder2.add( photon, "scale", 0.2, 5.0, 0.01 ).onChange( function(value) { photon.setScale(value); } );
+            //folder2.add( photon, "translateZ", 0.0, 200.0, 1.0 ).onChange( function(value) { photon.translateZ(value); } );
+            
+            var folder3 = gui.addFolder( 'Electron Spherical Harmonics 4.43' );
+            folder3.add( osphere, "visibility" ).onChange( function(value) { osphere.setVisibility(value); } );
+            folder3.add( osphere, "swapAnimDir" ).onChange( function(value) { osphere.setSwapAnimDir(value); } );
+            folder3.addColor( osphere, "color").onChange( function(value) { 
+                osphere.setColor(value);
+            } );
             folder1.add( grid, "gridContrast", 0.0, 1.0, 0.05 ).onChange( function(value) { grid.setBrightness(value); } );
+            
             folder1.addColor( effectController, "background").onChange( function(value) { 
                 scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
             } );
@@ -759,7 +1604,12 @@
             if ( tick < 0 ) tick = 0;
             
             // Update the material uniforms with the time, to pass on the elapsed time:
-            electron.addTime(delta);
+            //electron.addTime(delta);
+            
+            // 
+            //photon.translateZ(0.1);
+            
+            osphere.addTime(delta);
             
             // Tell WebGL to call the 'animate()' function for the next screen refresh:
             requestAnimationFrame( animate );
