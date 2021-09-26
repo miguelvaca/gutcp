@@ -74,7 +74,7 @@
             float bright = 1.0 - cos(6.2832 * (swapAnimDir ? uv.y : uv.x));
             bright = (bright>=0.0) ? bright : 0.0;
             //vColor = vec4( color[0], color[1], color[2], bright ); 
-            vColor = vec4( bright, 0.0, 0.0, bright ); 
+            //vColor = vec4( bright, 0.0, 0.0, bright ); 
             vColor = vec4( bright*color[0], bright*color[1], bright*color[2], bright ); 
             vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
 	        gl_PointSize = 2.0; 
