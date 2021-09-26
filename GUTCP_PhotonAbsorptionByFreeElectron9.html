@@ -70,8 +70,11 @@
         varying vec4  vColor; 		
         void main()
         {
-            float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0);
-            vColor = vec4( color[0], color[1], color[2], bright ); 
+            // float bright = mod(uTime + (swapAnimDir ? uv.y : uv.x), 1.0);
+            float bright = 1.0 - cos(6.2832 * (swapAnimDir ? uv.y : uv.x));
+            bright = (bright>=0.0) ? bright : 0.0;
+            //vColor = vec4( color[0], color[1], color[2], bright ); 
+            vColor = vec4( bright, 0.0, 0.0, bright ); 
             vec4 mvPosition = modelViewMatrix * vec4( position.xyz, 1.0 ); 
 	        gl_PointSize = 2.0; 
 		    gl_Position = projectionMatrix * mvPosition; 
@@ -1515,7 +1518,7 @@
             container = document.createElement( 'div' );
             document.body.appendChild( container );
 
-            camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
+            camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 5, 10000 );
             camera.position.y = 120;
             camera.position.z = 400;
 
@@ -1533,11 +1536,11 @@
             
             // Create the Y00 visualisation geometry and insert it into the scene:
             electron = new FreeElectronPhotonAbsorption(100.0, 64, 60);
-            electron.setVisibility(true);
+            electron.setVisibility(false);
             electron.insertScene(scene);
             
             photon = new PhotonAbsorption(100.0, 64, 60);
-            photon.setVisibility(true);
+            photon.setVisibility(false);
             photon.insertScene(scene);
             
             osphere = new PhotonModulatedOrbitsphere(105.0, 24, 60);
