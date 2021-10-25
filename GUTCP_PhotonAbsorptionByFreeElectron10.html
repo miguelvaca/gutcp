@@ -972,6 +972,12 @@
             translateZ(dist) {
                 this.object3Ds.translateZ(dist);
             }
+            
+            setPosition(x,y,z) {
+                this.object3Ds.position.x = x;
+                this.object3Ds.position.y = y;
+                this.object3Ds.position.z = z;
+            }
         }
         
         class PhotonModulatedOrbitsphere {
@@ -1529,6 +1535,7 @@
             document.body.appendChild( container );
 
             camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 5, 10000 );
+            camera.position.x = 120;
             camera.position.y = 120;
             camera.position.z = 400;
 
@@ -1550,7 +1557,7 @@
             electron.insertScene(scene);
             
             photon = new PhotonAbsorption(100.0, 64, 60);
-            photon.setVisibility(false);
+            photon.setVisibility(true);
             photon.insertScene(scene);
             
             osphere = new PhotonModulatedOrbitsphere(105.0, 24, 60);
@@ -1610,7 +1617,44 @@
         function getCameraConstant( camera ) {
             return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
         }
-            
+
+       function setTime( time ) {
+				// State machine based on time:
+				
+				// Approach: 3-secs
+				if (time < 3.0) {
+					// Photon moving:
+					effectController.position = time / 3;
+					
+				    electron.setCapture(0.0);
+				    electron.setSweep(0.0);
+					photon.setVisibility(true);
+				    photon.setScale(2.0);
+					photon.setPosition(0,0, -500*(1-effectController.position) -200);
+				} else 
+				// Shrink: 2-secs
+				if (time < 5.0) {
+					effectController.position = (time-3.0) / 2.0;
+					
+					electron.setCapture(effectController.position);
+					photon.setScale(1 * (1-effectController.position) + 0.9);
+					photon.setPosition(0,0, -200*(1-effectController.position));
+				} else 
+				// Rotate: 3-secs
+				if (time < 8.0) {
+					effectController.position = (time-5.0) / 3.0;
+					electron.setSweep(effectController.position);
+					photon.setVisibility(false);
+				} else 
+				// Wait: 2-secs
+				if (time < 10.0) {
+				}
+				else {
+					time = 0.0;
+				}
+                return time;
+        }
+
         function animate() {
             // Update the elapsed time to later provide to the shaders:
             var delta = clock.getDelta();
@@ -1622,8 +1666,8 @@
             
             // 
             //photon.translateZ(0.1);
-            
-            osphere.addTime(delta);
+            tick = setTime( tick );
+            //osphere.addTime(delta);
             
             // Tell WebGL to call the 'animate()' function for the next screen refresh:
             requestAnimationFrame( animate );
