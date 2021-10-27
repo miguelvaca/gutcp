@@ -1654,10 +1654,10 @@
 				if (time < 8.0) {
 					effectController.position = (time-5.0) / 3.0;
 					electron.setSweep(effectController.position);
-					photon.setVisibility(false);
 				} else 
-				// Wait: 2-secs
-				if (time < 10.0) {
+				// Wait: 1-secs
+				if (time < 9.0) {
+					photon.setVisibility(false);
 				}
 				else {
 					time = 0.0;
