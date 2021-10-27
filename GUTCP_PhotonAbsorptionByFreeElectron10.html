@@ -1559,6 +1559,7 @@
             photon = new PhotonAbsorption(100.0, 64, 60);
             photon.setVisibility(true);
             photon.insertScene(scene);
+            photon.rotateY(Math.PI*0.5);
             
             osphere = new PhotonModulatedOrbitsphere(105.0, 24, 60);
             osphere.setVisibility(false);
@@ -1630,7 +1631,7 @@
 				    electron.setSweep(0.0);
 					photon.setVisibility(true);
 				    photon.setScale(2.0);
-					photon.setPosition(0,0, -500*(1-effectController.position) -200);
+					photon.setPosition(-500*(1-effectController.position) -200, 0,0);
 				} else 
 				// Shrink: 2-secs
 				if (time < 5.0) {
@@ -1638,7 +1639,7 @@
 					
 					electron.setCapture(effectController.position);
 					photon.setScale(1 * (1-effectController.position) + 0.9);
-					photon.setPosition(0,0, -200*(1-effectController.position));
+					photon.setPosition(-200*(1-effectController.position), 0,0);
 				} else 
 				// Rotate: 3-secs
 				if (time < 8.0) {
