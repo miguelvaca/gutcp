@@ -553,6 +553,12 @@
             setPhase( phase ) {
                 this.cvfUniforms.phase.value = phase;
             }
+            
+            setPosition(x,y,z) {
+                this.object3Ds.position.x = x;
+                this.object3Ds.position.y = y;
+                this.object3Ds.position.z = z;
+            }
         }
       
         class PhotonAbsorption {
@@ -1629,6 +1635,7 @@
 					
 				    electron.setCapture(0.0);
 				    electron.setSweep(0.0);
+				    electron.setPosition(0,0, -100*(1-effectController.position) -40);
 					photon.setVisibility(true);
 				    photon.setScale(2.0);
 					photon.setPosition(-500*(1-effectController.position) -200, 0,0);
@@ -1638,6 +1645,8 @@
 					effectController.position = (time-3.0) / 2.0;
 					
 					electron.setCapture(effectController.position);
+				    electron.setPosition(0,0, -40*(1-effectController.position));
+				    
 					photon.setScale(1 * (1-effectController.position) + 0.9);
 					photon.setPosition(-200*(1-effectController.position), 0,0);
 				} else 
