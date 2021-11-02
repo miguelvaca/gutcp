@@ -10,12 +10,6 @@
     <link type="text/css" href="css/visualisation.css" rel="stylesheet"/>
 </head>
 <body>
-    <!--
-    <div id="info">
-        <a href="http://www.brilliantlightpower.com/book/" target="_blank" rel="noopener">GUTCP Ch 4 - Photon capture by free electron</a>
-        <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com">Dr Randell L Mills</a> - Visualisation by : <a href="mailto:vacamiguel@gmail.com">Miguel Vaca</a> 
-    </div>
-    -->
 
     <script src="https://threejs.org/build/three.js"></script>
     <script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
@@ -107,7 +101,7 @@
             gl_Position = projectionMatrix * mvPosition; 					 
         } 
     </script>
-
+    
     
     <script type="x-shader/x-vertex" id="electronVertexShader">
         uniform float uTime; 
@@ -174,6 +168,7 @@
         }
     </script>
     
+    
     <script type="x-shader/x-fragment" id="fragmentShader">
         varying vec4 vColor; 
         void main()
@@ -181,6 +176,7 @@
             gl_FragColor = vColor; 
         }
     </script>
+    
     
     <script type="x-shader/x-vertex" id="gridVertexShader">
         uniform float gridContrast; 
