@@ -48,32 +48,32 @@
                 //float cosx = 0.707; 
                 float sinx = 0.0; 
                 float cosx = 1.0; 
-                if(sweep >= 0.95) { 
-                    sinx = sin(2.0 * uTime); 
-                    cosx = cos(2.0 * uTime); 
-                } 
+                //if(sweep >= 0.95) { 
+                //    sinx = sin(2.0 * uTime); 
+                //    cosx = cos(2.0 * uTime); 
+                //} 
                 mat3  rotation = mat3( cosx, 0.0,  sinx, 0.0, 1.0, 0.0, -sinx, 0.0, cosx); 
                 vec3 col = rotation * normalize(position); 
                 
                 // vColor = vec4( color[0], color[1], color[2], 1.0 ); 
-                float transparency = 0.2;
-                if((col[0] - col[2]) >= 0.95) {
+                float transparency = 0.25;
+                if((col[0]) >= 0.90) {
                     // Red
                     vColor = vec4( 1, 0, 0, transparency ); 
                 } else 
-                if((col[0] - col[2]) >= 0.50) {
+                if((col[0]) >= 0.50) {
                     // Orange
                     vColor = vec4( 1, 0.5, 0, transparency ); 
                 } else 
-                if((col[0] - col[2]) >= 0.0) {
+                if((col[0]) >= 0.0) {
                     // Yellow
                     vColor = vec4( 1, 1, 0, transparency ); 
                 } else 
-                if((col[0] - col[2]) >= -0.50) {
+                if((col[0]) >= -0.50) {
                     // Green
                     vColor = vec4( 0, 1, 0, transparency ); 
                 } else 
-                if((col[0] - col[2]) >= -0.95) {
+                if((col[0]) >= -0.90) {
                     // Blue
                     vColor = vec4( 0, 0, 1, transparency ); 
                 } else {
@@ -337,7 +337,8 @@
                 var tz = m_matrix[6+0] * becvf[0] + m_matrix[6+1] * becvf[1] + m_matrix[6+2] * becvf[2];
 
                 
-                rotation_axis = [-0.707, 0.0, 0.707];
+                //rotation_axis = [-0.707, 0.0, 0.707];
+                rotation_axis = [0.0, 0.0, 1.0];
                 m2piONm = 2.0 * Math.PI * i_m / M;
 
                 // The m_matrix is identical for both Y00 geometry types:
@@ -446,7 +447,7 @@
                 // Create the shader uniforms:
                 this.cvfUniforms = {
                     //cameraConstant: { value: getCameraConstant( camera ) },
-                    radius:  	{ value: this.radius },
+                    radius:  	{ value: this.radius - 8 },
                     phase:  	{ value: this.phase },
                     capture:   	{ value: this.capture },
                     sweep:   	{ value: this.sweep },
@@ -493,9 +494,9 @@
                     vertexShader:   document.getElementById('electronVertexShader').textContent,
                     fragmentShader: document.getElementById('fragmentShader').textContent,
                     transparent:    true,
-                    depthTest:      false, // Stop the lines from disappearing!
+                    depthTest:      true, // Stop the lines from disappearing!
                     wireframe:      false,
-                    opacity:        0
+                    opacity:        1.0,
                 } );
                 this.material1.extensions.drawBuffers = true;
 
@@ -528,9 +529,9 @@
                     vertexShader:   document.getElementById('rotVertexShader').textContent,
                     fragmentShader: document.getElementById('fragmentShader').textContent,
                     transparent:    true,
-                    depthTest:      false, // Stop the lines from disappearing!
+                    depthTest:      true, // Stop the lines from disappearing!
                     wireframe:      false,
-                    opacity:        0
+                    opacity:        1.0
                 } );
                 this.material2.extensions.drawBuffers = true;
                 
@@ -910,7 +911,7 @@
                     vertexShader:   document.getElementById('cvfVertexShader').textContent,
                     fragmentShader: document.getElementById('fragmentShader').textContent,
                     transparent:    true,
-                    depthTest:      false, // Stop the lines from disappearing!
+                    depthTest:      true, // Stop the lines from disappearing!
                     wireframe:      false,
                     opacity:        0
                 } );
@@ -922,7 +923,7 @@
                     vertexShader:   document.getElementById('cvfVertexShader').textContent,
                     fragmentShader: document.getElementById('fragmentShader').textContent,
                     transparent:    true,
-                    depthTest:      false, // Stop the lines from disappearing!
+                    depthTest:      true, // Stop the lines from disappearing!
                     wireframe:      false,
                     opacity:        0
                 } );
@@ -1283,7 +1284,7 @@
                     //vertexShader:   document.getElementById('basicShader').textContent,
                     fragmentShader: document.getElementById('fragmentShader').textContent,
                     transparent:    true,
-                    depthTest:      false, // Stop the lines from disappearing!
+                    depthTest:      true, // Stop the lines from disappearing!
                     wireframe:      false,
                     opacity:        0
                 } );
@@ -1619,7 +1620,7 @@
         var clock = new THREE.Clock();
         var tick = 0;
         
-        var electron, photon, osphere, grid;
+        var electron, photon, osphere, grid, blackSphere;
 
         init();
         animate();
@@ -1677,6 +1678,8 @@
             grid = new Grid();
             grid.insertScene(scene);
             
+            init_BlackSphere();
+            
             // Add all the controls for the various visualisations
             initGUI();
         }
@@ -1713,6 +1716,16 @@
             } );
         }
         
+        function init_BlackSphere() {
+            // Create and insert a black sphere that can be used to obscure the back-half of the geometries.
+            // Make its radius 97, which is less than the 100 radius of the rest of the geometries.
+            var geometry = new THREE.SphereGeometry( 95, 32, 32 );
+            var material = new THREE.MeshBasicMaterial( {color: 0x000000} ); 
+            blackSphere = new THREE.Mesh( geometry, material );
+            blackSphere.visible = false;
+            scene.add( blackSphere );            
+        }
+			
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -1748,16 +1761,37 @@
                 photon.setScale(1 * (1-effectController.position) + 0.9);
                 photon.setPosition(-200*(1-effectController.position), 0,0);
             } else 
-            // Rotate: 3-secs
-            if (time < 8.0) {
-                effectController.position = (time-5.0) / 3.0;
+            // Rotate closed: 3-secs
+            if (time < 6.0) {
+                effectController.position = (time-5.0) / 1.0;
                 electron.setSweep(effectController.position);
-            } else 
-            // Wait: 5-secs
-            if (time < 13.0) {
                 photon.setVisibility(false);
-                electron.setTime(time - 8.0);
-                //electron.rotateY(time);
+                blackSphere.visible = true;
+            } else 
+            // Wait: 1-secs
+            //if (time < 7.0) {
+            //    electron.setTime(time - 6.0);
+            //} else 
+            // Rotate open: 1-secs
+            if (time < 7.0) {
+                effectController.position = (time-6.0) / 1.0;
+                electron.setSweep(1-effectController.position);
+            } else 
+            // Rotate open: 1-secs
+            if (time < 7.5) {
+                effectController.position = (time-7.0) / 0.5;
+                
+                blackSphere.visible = false;
+                electron.setCapture(1-effectController.position);
+                electron.setPosition(0,0, 120*(effectController.position));
+            } else 
+            // Rotate open: 3-secs
+            if (time < 11.0) {
+                effectController.position = (time-7.5) / 3.5;
+                
+                electron.setCapture(0);
+                electron.setSweep(0);
+                electron.setPosition(0,0, 840*(effectController.position)+120);
             }
             else {
                 time = 0.0;
