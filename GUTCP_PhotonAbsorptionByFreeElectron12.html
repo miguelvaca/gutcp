@@ -1767,7 +1767,7 @@
                 electron.setPosition(0,0, -100*(1-effectController.position) -40);
                 photon.setVisibility(true);
                 photon.setScale(2.0);
-                photon.setPosition(-1500*(1-effectController.position) -200, 0,0);
+                photon.setPosition(-600*(1-effectController.position) -200, 0,0);
             } else 
             // Shrink, disc-to-BECVF: 2-secs
             if (time < 4.0) {
@@ -1806,13 +1806,13 @@
                 //electron.setPosition(0,0, 120*(effectController.position));
             } else 
             // Rotate open: 3-secs
-            if (time < 9.0) {
-                effectController.position = (time-5.5) / 3.5;
+            if (time < 8.5) {
+                effectController.position = (time-5.5) / 3.0;
                 electron.radius = 50.0;
                 electron.setCapture(0);
                 electron.setSweep(0);
                 //electron.setPosition(0,0, 840*(effectController.position)+120);
-                electron.setPosition(0,0, 1000*(effectController.position));
+                electron.setPosition(0,0, 600*(effectController.position));
             }
             else {
                 time = 0.0;
