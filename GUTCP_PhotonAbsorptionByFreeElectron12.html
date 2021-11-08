@@ -206,7 +206,7 @@
         	
             vec4 mvPosition = modelViewMatrix * vec4( newPosition.xyz, 1.0 ); 
             if(capture > 0.0) {
-            	vColor = vec4(color.xyz, 1.0 - cos(6.2832 * uv.x + 4.7124)); // - 1.5708
+            	vColor = vec4(color.xyz, 1.0 - cos(6.2832 * uv.x + 1.5708)); // - 1.5708
             } else {
             	vColor = vec4(color.xyz, 1.0); // - 1.5708
             }
