@@ -858,6 +858,8 @@
                 this.radius = radius;
                 this.segments = segments;
                 this.angles = angles;
+
+                //this.has_rotated = false;
                 
                 // Handle to the scene object:
                 this.scene = 0;
@@ -1752,7 +1754,7 @@
             return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
         }
 
-       function setTime( time ) {
+        function setTime( time ) {
             // State machine based on time:
             
             // Approach: 3-secs
@@ -1765,11 +1767,11 @@
                 electron.setPosition(0,0, -100*(1-effectController.position) -40);
                 photon.setVisibility(true);
                 photon.setScale(2.0);
-                photon.setPosition(-1000*(1-effectController.position) -200, 0,0);
+                photon.setPosition(-1500*(1-effectController.position) -200, 0,0);
             } else 
-            // Shrink: 2-secs
-            if (time < 5.0) {
-                effectController.position = (time-3.0) / 2.0;
+            // Shrink, disc-to-BECVF: 2-secs
+            if (time < 4.0) {
+                effectController.position = (time-3.0) / 1.0;
                 
                 electron.setCapture(effectController.position);
                 electron.setScale(0.5 + 0.5*(1 - effectController.position));
@@ -1779,33 +1781,38 @@
                 photon.setPosition(-200*(1-effectController.position), 0,0);
             } else 
             // Rotate closed: 0.5-sec
-            if (time < 5.5) {
-                effectController.position = (time-5.0) / 0.5;
+            if (time < 4.5) {
+                effectController.position = (time-4.0) / 0.5;
                 electron.setScale(0.5);
                 electron.setSweep(effectController.position);
                 photon.setVisibility(false);
                 blackSphere.visible = true;
             } else 
-            if (time < 6.0) {
-                effectController.position = (time-5.5) / 0.5;
+            // Rotate open: 0.5 sec
+            if (time < 5.0) {
+                /*
+                if(electron.has_rotated == false) {
+                    electron.has_rotated = true;
+                }*/
+                effectController.position = (time-4.5) / 0.5;
                 electron.setSweep(1-effectController.position);
             } else 
-            // Rotate open: 0.5-secs
-            if (time < 6.5) {
-                effectController.position = (time-6.0) / 0.5;
+            // BECVF-to-disc: 0.5-secs
+            if (time < 5.5) {
+                effectController.position = (time-5.0) / 0.5;
                 
                 blackSphere.visible = false;
                 electron.setCapture(1-effectController.position);
                 //electron.setPosition(0,0, 120*(effectController.position));
             } else 
             // Rotate open: 3-secs
-            if (time < 10.0) {
-                effectController.position = (time-6.5) / 3.5;
+            if (time < 9.0) {
+                effectController.position = (time-5.5) / 3.5;
                 electron.radius = 50.0;
                 electron.setCapture(0);
                 electron.setSweep(0);
                 //electron.setPosition(0,0, 840*(effectController.position)+120);
-                electron.setPosition(0,0, 840*(effectController.position));
+                electron.setPosition(0,0, 1000*(effectController.position));
             }
             else {
                 time = 0.0;
