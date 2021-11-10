@@ -208,7 +208,8 @@
             if(capture > 0.0) {
             	vColor = vec4(color.xyz, 1.0 - cos(6.2832 * uv.x + 1.5708)); // - 1.5708
             } else {
-            	vColor = vec4(color.xyz, 1.0); // - 1.5708
+                float bright = sqrt(1.0 - pow(uv.y, 2.0));
+            	vColor = vec4(color.xyz, bright); 
             }
 	        gl_PointSize = 2.0; 
 		    gl_Position = projectionMatrix * mvPosition; 
