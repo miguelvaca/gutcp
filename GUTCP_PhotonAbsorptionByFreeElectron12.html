@@ -60,28 +60,34 @@
                 
                 // vColor = vec4( color[0], color[1], color[2], 1.0 ); 
                 float transparency = 0.25;
-                if((col[0]) >= 0.90) {
+                
+                float red[6] = float[6](1.0, 1.0, 1.0, 0.0, 0.0, 1.0);
+                float grn[6] = float[6](0.0, 0.5, 1.0, 1.0, 0.0, 0.0);
+                float blu[6] = float[6](0.0, 0.0, 0.0, 0.0, 1.0, 1.0);
+                
+                if((col[0]) >= 0.70) {
                     // Red
-                    vColor = vec4( 1, 0, 0, transparency ); 
+                    float trans = (col[0] - 0.7) / 0.3;
+                    vColor = vec4( trans * red[0] + (1.0-trans) * red[1], trans * grn[0] + (1.0-trans) * grn[1], trans * blu[0] + (1.0-trans) * blu[1], transparency ); 
                 } else 
-                if((col[0]) >= 0.50) {
+                if((col[0]) >= 0.25) {
                     // Orange
-                    vColor = vec4( 1, 0.5, 0, transparency ); 
+                    float trans = (col[0] - 0.25) / 0.45;
+                    vColor = vec4( trans * red[1] + (1.0-trans) * red[2], trans * grn[1] + (1.0-trans) * grn[2], trans * blu[1] + (1.0-trans) * blu[2], transparency ); 
                 } else 
-                if((col[0]) >= 0.0) {
+                if((col[0]) >= -0.25) {
                     // Yellow
-                    vColor = vec4( 1, 1, 0, transparency ); 
+                    float trans = (col[0] + 0.25) / 0.5;
+                    vColor = vec4( trans * red[2] + (1.0-trans) * red[3], trans * grn[2] + (1.0-trans) * grn[3], trans * blu[2] + (1.0-trans) * blu[3], transparency ); 
                 } else 
-                if((col[0]) >= -0.50) {
+                if((col[0]) >= -0.70) {
                     // Green
-                    vColor = vec4( 0, 1, 0, transparency ); 
-                } else 
-                if((col[0]) >= -0.90) {
-                    // Blue
-                    vColor = vec4( 0, 0, 1, transparency ); 
+                    float trans = (col[0] + 0.70) / 0.45;
+                    vColor = vec4( trans * red[3] + (1.0-trans) * red[4], trans * grn[3] + (1.0-trans) * grn[4], trans * blu[3] + (1.0-trans) * blu[4], transparency ); 
                 } else {
                     // Violet
-                    vColor = vec4( 1, 0, 1, transparency ); 
+                    float trans = (col[0] + 1.0) / 0.3;
+                    vColor = vec4( trans * red[4] + (1.0-trans) * red[5], trans * grn[4] + (1.0-trans) * grn[5], trans * blu[4] + (1.0-trans) * blu[5], transparency ); 
                 }
             } else {
                 vColor = vec4( color[0], color[1], color[2], 0.0 ); 
