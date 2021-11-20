@@ -1739,10 +1739,10 @@
             grid = new Grid();
             grid.insertScene(scene);
             
-            init_BlackSphere();
+            //init_BlackSphere();
             
             // Add all the controls for the various visualisations
-            initGUI();
+            //initGUI();
         }
     
         function initGUI() {
@@ -1775,6 +1775,7 @@
             folder1.addColor( effectController, "background").onChange( function(value) { 
                 scene.background.setRGB(value[0]/255.0, value[1]/255.0, value[2]/255.0);
             } );
+            gui.close();
         }
         
         function init_BlackSphere() {
@@ -1840,7 +1841,7 @@
             if (time < 5.5) {
                 effectController.position = (time-5.0) / 0.5;
                 
-                blackSphere.visible = false;
+                //blackSphere.visible = false;
                 electron.setCapture(1-effectController.position);
                 //electron.setPosition(0,0, 120*(effectController.position));
             } else 
