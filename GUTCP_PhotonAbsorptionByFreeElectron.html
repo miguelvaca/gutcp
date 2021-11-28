@@ -12,7 +12,7 @@
 <body>
 
     <script src="https://threejs.org/build/three.js"></script>
-    <script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
+    <!--script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script-->
     <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/7.5.1/math.min.js"></script>
 
@@ -247,7 +247,7 @@
                 }
             } else {
                 float bright = sqrt(1.0 - pow(uv.y, 2.0));
-            	// vColor = vec4(color.xyz, bright); 
+            	//vColor = vec4(color.xyz, bright); 
             	vColor = vec4(color.xyz * bright, bright); 
             }
 	        gl_PointSize = 1.0; 
@@ -418,30 +418,39 @@
                 // Storage for all the locations for the geometry:
                 var positions;
                 var uvs;
+                var normals;
 
                 // Local loop variables:
                 var retval = [];
-                retval[0] = [];
-                retval[1] = [];
+                retval[0] = []; // positions
+                retval[1] = []; // uvs
+                retval[2] = []; // normals
                 //var vtx = [];
+                var p = 0;
+                var q = 0;
+                var r = 0;
+                positions = new Float32Array( segments * angles * 3 );
+                normals = new Float32Array( segments * angles * 3 );
+                uvs = new Float32Array( segments * angles * 2 );
                 for ( var i_segment = 0; i_segment < segments; i_segment++ ) {
-                    var p = 0;
-                    var q = 0;
-                    positions = new Float32Array( angles * 3 );
-                    uvs = new Float32Array( angles * 2 );
                     for ( var i_angle = 0; i_angle < angles; i_angle++ ) {
-                        positions[ p++ ] = 0.0; // 1.0 * i_angle;
-                        positions[ p++ ] = 0.0; // 1.0 * i_segment;
+                        positions[ p++ ] = 1.0; // 1.0 * i_angle;
+                        positions[ p++ ] = 1.0; // 1.0 * i_segment;
                         positions[ p++ ] = 0.0;
-    
+                        
+                        normals[ r++ ] = 0.0; // 1.0 * i_angle;
+                        normals[ r++ ] = 0.0; // 1.0 * i_segment;
+                        normals[ r++ ] = 1.0;
+                        
                         // Setup the UV array, which will contain a lookup-table of 0.0-1.0 for (i,j) based on the index:
                         uvs[ q++ ] = (i_angle * 1.0) / ( angles - 1.0 );
                         uvs[ q++ ] = (i_segment * 1.0) / ( segments - 1.0 );
                     }
-                    // Finished the loop, so now create a LineLoop for it:
-                    retval[0].push(positions);
-                    retval[1].push(uvs);
                 }
+                // Finished the loop, so now create a LineLoop for it:
+                retval[0].push(positions);
+                retval[1].push(uvs);
+                retval[2].push(normals);
                 return retval;
             }
             
@@ -542,6 +551,7 @@
                 // The geometry, based on BufferGeometry for efficiency:
                 this.positions = electronGeometry[0];
                 this.uvs = electronGeometry[1];
+                this.normals = electronGeometry[2];
 
                 // console.log(this.positions.length);
                 
@@ -557,7 +567,7 @@
                     linewidth:      5.0,
                 } );
                 this.material1.extensions.drawBuffers = true;
-
+                /*
                 // Initial geometry for the free electron that sweeps to form a BECVF:
                 for(var p=0, pl=this.positions.length; p<pl; ++p) {
                     this.geometry = new THREE.BufferGeometry();
@@ -566,11 +576,43 @@
                     this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[p], 2 ) );
         
                     // Create the Lines geometry and load the into the scene:
-                    var lines = new THREE.LineLoop( this.geometry, this.material1 );
+                    // var lines = new THREE.LineLoop( this.geometry, this.material1 );
+                    var lines = new THREE.Mesh( this.geometry, this.material1 );
                     lines.matrixAutoUpdate = false;
                     lines.updateMatrix();
                     this.object3Ds.add(lines);
                 }
+                */
+                
+                // Setup indexed triangles:
+                const indices = [];
+                
+                for ( var i = 0; i < segments-1; i++ ) {
+                    for ( var j = 0; j < angles-1; j++ ) {
+                        // Front side triangles:
+                        indices.push( i*angles + j, (i+1)*angles + j, i*angles + j + 1);
+                        indices.push( i*angles + j + 1, (i+1)*angles + j, (i+1)*angles + j + 1);
+                        
+                        // Back side triangles: 
+                        indices.push( i*angles + j, i*angles + j + 1, (i+1)*angles + j);
+                        indices.push( (i+1)*angles + j, i*angles + j + 1, (i+1)*angles + j + 1);
+                    }
+                }
+                
+                // Initial geometry for the free electron that sweeps to form a BECVF:
+                this.geometry = new THREE.BufferGeometry();
+                // Add the vertices and uv arrays as attributes into the geometry:
+                this.geometry.setAttribute( 'position', new THREE.BufferAttribute( this.positions[0], 3 ) );
+                this.geometry.setAttribute( 'normal', new THREE.BufferAttribute( this.normals[0], 3 ) );
+                this.geometry.setAttribute( 'uv', new THREE.BufferAttribute( this.uvs[0], 2 ) );
+                this.geometry.setIndex(indices);
+    
+                // Create the Lines geometry and load the into the scene:
+                // var lines = new THREE.LineLoop( this.geometry, this.material1 );
+                var lines = new THREE.Mesh( this.geometry, this.material1 );
+                lines.matrixAutoUpdate = false;
+                lines.updateMatrix();
+                this.object3Ds.add(lines);
                 
                 // Re-create the geometries:
                 electronGeometry = FreeElectronPhotonAbsorption.createY00Geometry (radius, segments, segments, angles);
@@ -1718,7 +1760,8 @@
             window.addEventListener( 'resize', onWindowResize, false );
             
             // Create the Y00 visualisation geometry and insert it into the scene:
-            electron = new FreeElectronPhotonAbsorption(100.0, 64, 60);
+            //electron = new FreeElectronPhotonAbsorption(100.0, 64, 60);
+            electron = new FreeElectronPhotonAbsorption(100.0, 48, 60);
             electron.setVisibility(true);
             electron.insertScene(scene);
             
