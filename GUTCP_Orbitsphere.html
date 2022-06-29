@@ -156,7 +156,7 @@
 			}
 
 			function getCameraConstant( camera ) {
-				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+				return window.innerHeight / ( Math.tan( THREE.MathUtils.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
 			}
 /*
 			// "MB","#f08","#201"
