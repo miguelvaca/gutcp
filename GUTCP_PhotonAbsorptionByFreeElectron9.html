@@ -17,9 +17,9 @@
     </div>
     -->
 
-    <script src="https://threejs.org/build/three.js"></script>
-    <script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
-    <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/three@0.142.0/build/three.js"></script>
+    <script src="./dat.gui.min.js"></script>
+    <script src="https://unpkg.com/three@0.142.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/7.5.1/math.min.js"></script>
 
     <script type="x-shader/x-vertex" id="basicShader">
@@ -1598,7 +1598,7 @@
         }
 
         function getCameraConstant( camera ) {
-            return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+            return window.innerHeight / ( Math.tan( THREE.MathUtils.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
         }
             
         function animate() {

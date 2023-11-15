@@ -19,14 +19,13 @@
             <br>Physics by : <a href="mailto:rmills@brilliantlightpower.com"
             >Dr Randell L Mills</a> - FDTD Simulation by : <a href="mailto:vacamiguel@gmail.com">J Miguel Vaca</a> 
         </div>
-
-		<script src="https://threejs.org/build/three.js"></script>
-		<script src="https://mrdoob.github.io/three.js/examples/js/WebGL.js"></script>
+		<script src="https://unpkg.com/three@0.142.0/build/three.js"></script>
+		<script src="./dat.gui.min.js"></script>
+		<script src="https://unpkg.com/three@0.142.0/examples/js/controls/OrbitControls.js"></script>
+		<script src="https://unpkg.com/three@0.135.0/examples/js/WebGL.js"></script>
 		<!--script src="https://threejs.org/examples/js/Detector.js"></script-->
-		<script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
-		<script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
-		<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-		<script src="https://threejs.org/examples/js/GPUComputationRenderer.js"></script>
+		<script src="https://unpkg.com/three@0.142.0/examples/js/libs/stats.min.js"></script>
+		<script src="https://unpkg.com/three@0.142.0/examples/js/misc/GPUComputationRenderer.js"></script>
 		<script src="gutcp.js"></script>
 
 		<!--script src="../three.js/build/three.js"></script-->
@@ -366,7 +365,7 @@
 
 				initComputeRenderer() {
 			
-					this.gpuCompute = new GPUComputationRenderer( this.xDim*this.yDim, this.zDim, this.renderer );
+					this.gpuCompute = new THREE.GPUComputationRenderer( this.xDim*this.yDim, this.zDim, this.renderer );
 
 					this.textureElectric = this.gpuCompute.createTexture();
 					this.textureMagnetic = this.gpuCompute.createTexture();
@@ -492,7 +491,7 @@
 		</script>
 		
 		<script>
-			if ( WEBGL.isWebGLAvailable() ) {
+			if ( THREE.WEBGL.isWebGLAvailable() ) {
 				var container, stats;
 				var camera, scene, renderer, geometry, controls, fdtd;
 				var clock = new THREE.Clock();
@@ -509,7 +508,7 @@
 				init();
 				animate();
 			} else {
-				var warning = WEBGL.getWebGLErrorMessage();
+				var warning = THREE.WEBGL.getWebGLErrorMessage();
 				document.getElementById('container').appendChild(warning);
 			}
 
@@ -585,7 +584,7 @@
 
 			function getCameraConstant( camera ) {
 
-				return window.innerHeight / ( Math.tan( THREE.Math.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+				return window.innerHeight / ( Math.tan( THREE.MathUtils.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
 			}
 
 			function animate() {
